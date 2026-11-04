@@ -1,0 +1,1336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Riichi Mahjong Calculator & Live Scoreboard</title>
+<meta name="description" content="Free Riichi (Japanese) mahjong point calculator, score tracker and live scoreboard. Count han and fu, track riichi and honba, share a game by QR code, and run tournaments with uma/oka.">
+<meta name="keywords" content="riichi mahjong calculator, japanese mahjong score, mahjong points, han fu calculator, mahjong scoreboard, 日麻 点数计算, 麻雀 点数計算">
+<meta property="og:title" content="Riichi Mahjong Calculator & Live Scoreboard">
+<meta property="og:description" content="Count points, track a game across phones with a QR code, and run mahjong tournaments.">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#1f5c46">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<script src="qrcode.js" defer></script>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500&text=%E6%9D%B1%E5%8D%97%E8%A5%BF%E5%8C%97%E7%99%BD%E7%99%BC%E4%B8%AD%E4%B8%80%E4%BA%8C%E4%B8%89%E5%9B%9B%E4%BA%94%E5%85%AD%E4%B8%83%E5%85%AB%E4%B9%9D%E8%90%AC%E7%AD%92%E7%B4%A2&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=DM+Mono&display=swap">
+<style>
+:root{
+  --bg:#f4f1ea;--card:#fffdf8;--ink:#1d2421;--muted:#6b726e;--line:#e2ddd2;
+  --felt:#1f5c46;--felt2:#174a38;--accent:#c8402f;--gold:#b8892b;--chip:#efe9dc;--on:#1f5c46;--onink:#fff;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#121614;--card:#1b211e;--ink:#e9ece9;--muted:#9aa29d;--line:#2c3430;--chip:#252d29;--felt:#1f5c46;--felt2:#163f30;--on:#2f8a68;}
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;-webkit-tap-highlight-color:transparent}
+header{background:var(--felt);color:#fff;position:sticky;top:0;z-index:5;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+.hwrap{max-width:720px;margin:0 auto;padding:12px 14px 0}
+h1{margin:0 0 10px;font-size:18px;font-weight:700;letter-spacing:.2px}
+h1 span{opacity:.7;font-weight:500}
+nav{display:flex;gap:4px}
+nav button{flex:1;background:transparent;border:0;color:#cfe3da;padding:10px 4px 12px;font:inherit;font-weight:600;border-bottom:3px solid transparent;cursor:pointer}
+nav button.on{color:#fff;border-bottom-color:#f0c35a}
+main{max-width:720px;margin:0 auto;padding:14px 12px 120px}
+section.view{display:none}section.view.on{display:block}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+.card h2{margin:0 0 10px;font-size:13px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);font-weight:700}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.row+.row{margin-top:10px}
+.lbl{min-width:84px;color:var(--muted);font-size:13px}
+.seg{display:inline-flex;background:var(--chip);border-radius:10px;padding:3px;gap:2px}
+.seg button{border:0;background:transparent;color:var(--ink);padding:7px 12px;border-radius:8px;font:inherit;font-weight:600;cursor:pointer}
+.seg button.on{background:var(--on);color:var(--onink)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:var(--chip);color:var(--ink);border-radius:999px;padding:7px 11px;font:inherit;font-size:14px;cursor:pointer;display:inline-flex;gap:6px;align-items:center}
+.chip small{color:var(--muted);font-weight:600}
+.chip.on{background:var(--on);border-color:var(--on);color:#fff}
+.chip.on small{color:#d6eee4}
+.chip:disabled{opacity:.35;cursor:not-allowed;text-decoration:line-through}
+.chip.auto{border-style:dashed}
+.grp{font-size:12px;color:var(--muted);margin:12px 0 6px;font-weight:600}
+.grp:first-of-type{margin-top:0}
+.step{display:inline-flex;align-items:center;background:var(--chip);border-radius:10px;overflow:hidden}
+.step button{border:0;background:transparent;color:var(--ink);width:36px;height:34px;font-size:18px;cursor:pointer}
+.step b{min-width:26px;text-align:center}
+.stepper{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 0}
+.stepper+.stepper{border-top:1px solid var(--line)}
+.stepper .t small{display:block;color:var(--muted);font-size:12px}
+select,input[type=text],input[type=number]{font:inherit;color:var(--ink);background:var(--chip);border:1px solid var(--line);border-radius:9px;padding:7px 9px}
+.meld{display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:7px 0;border-top:1px solid var(--line)}
+.meld:first-child{border-top:0}
+.meld .n{width:18px;color:var(--muted);font-weight:700}
+.meld .seg button{padding:6px 9px;font-size:13px}
+.hint{font-size:12px;color:var(--muted);margin-top:8px}
+.warn{background:#fbe9e5;color:#8a2618;border-radius:10px;padding:8px 10px;font-size:13px;margin-top:10px}
+@media (prefers-color-scheme:dark){.warn{background:#3a1f1a;color:#f2b3a7}}
+.breakdown{width:100%;border-collapse:collapse;font-size:13px}
+.breakdown td{padding:3px 0;border-bottom:1px dashed var(--line)}
+.breakdown td:last-child{text-align:right;font-weight:600}
+/* result bar */
+.result{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--felt2);color:#fff;box-shadow:0 -4px 14px rgba(0,0,0,.2)}
+.result .in{max-width:720px;margin:0 auto;padding:10px 14px calc(10px + env(safe-area-inset-bottom));display:flex;align-items:center;gap:12px}
+.result .big{font-size:26px;font-weight:800;letter-spacing:.3px;line-height:1.1}
+.result .sub{font-size:12px;color:#bfe0d2}
+.result .grow{flex:1;min-width:0}
+.btn{border:0;border-radius:10px;padding:10px 14px;font:inherit;font-weight:700;cursor:pointer;background:var(--chip);color:var(--ink)}
+.btn.pri{background:#f0c35a;color:#2a2105}
+.btn.red{background:var(--accent);color:#fff}
+.btn.full{width:100%}
+.btn:disabled{opacity:.4}
+/* chart */
+.tbl{width:100%;border-collapse:collapse;font-size:13px;text-align:center}
+.tbl th{background:var(--chip);padding:7px 4px;font-size:12px}
+.tbl td{border-top:1px solid var(--line);padding:6px 3px}
+.tbl td.fu{font-weight:700;background:var(--chip)}
+.tbl .r{font-weight:700}
+.tbl .t{font-size:11px;color:var(--muted)}
+.tbl .m{color:var(--gold);font-weight:700}
+/* tracker */
+.status{display:flex;gap:8px;justify-content:space-between;align-items:center;flex-wrap:wrap}
+.pill{background:var(--chip);border-radius:999px;padding:6px 12px;font-weight:700;font-size:14px}
+.pill small{color:var(--muted);font-weight:600;margin-right:4px}
+.players{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
+.pl{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;position:relative}
+.pl.dealer{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold) inset}
+.pl .w{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
+.pl.dealer .w{color:var(--gold)}
+.pl .nm{font-weight:700;font-size:16px;margin:2px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pl .sc{font-size:24px;font-weight:800;font-variant-numeric:tabular-nums}
+.pl .d{font-size:13px;font-weight:700;min-height:18px}
+.pos{color:#2e8b57}.neg{color:var(--accent)}
+.pl .rb{position:absolute;top:10px;right:10px;border:1px solid var(--line);background:var(--chip);color:var(--ink);border-radius:8px;font:inherit;font-size:12px;font-weight:700;padding:5px 8px;cursor:pointer}
+.pl .rb.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.log{list-style:none;margin:0;padding:0;font-size:13px}
+.log li{padding:7px 0;border-top:1px solid var(--line)}
+.log li:first-child{border-top:0}
+.log .rd{color:var(--muted);font-weight:700;margin-right:6px}
+.rec{border:2px solid var(--gold);background:linear-gradient(var(--card),var(--card)) padding-box}
+.rec-h{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.rec-h span{color:var(--muted);font-size:13px;flex:1}
+.rec .lnk{font-size:12px}
+.steps{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.stp{border:1.5px solid var(--line);border-radius:999px;padding:5px 11px;font-size:13px;font-weight:600;color:var(--muted)}
+.stp small{font-weight:500}
+.stp.on{border-color:var(--gold);background:var(--gold);color:#fff}
+.stp.done{border-color:var(--on);color:var(--on)}
+/* tracker v2 */
+:root{--seat:#f0eee6;--seatline:#dbe3cf;--windbg:#d9e4cd;--windink:#1f4a37;--histbg:#eef0d9}
+@media (prefers-color-scheme:dark){:root{--seat:#1d2420;--seatline:#2e3a33;--windbg:#26342c;--windink:#cfe6d9;--histbg:#1e261f}}
+#v-table{font-family:"Outfit",-apple-system,sans-serif}
+.trk-head{display:flex;justify-content:space-between;align-items:flex-start;margin:6px 4px 4px}
+.trk-title{font-size:36px;font-weight:700;color:var(--windink);letter-spacing:-.6px;line-height:1}
+.trk-sub{font-style:italic;color:var(--windink);opacity:.85;font-size:17px;margin-top:4px}
+.sticks{display:flex;gap:6px;margin-top:10px}
+.mini{background:var(--windbg);color:var(--windink);border-radius:999px;padding:4px 10px;font-size:13px}
+.mini small{opacity:.75;font-weight:600;text-transform:uppercase;letter-spacing:.5px;font-size:11px}
+.rw{text-align:center}
+.rw-c{width:80px;height:80px;border-radius:50%;background:var(--felt);color:#fff;display:grid;place-items:center;font-size:40px;font-family:"Noto Serif SC","Songti SC",serif}
+.rw-l{font-style:italic;color:var(--windink);margin-top:6px;font-size:15px;text-transform:uppercase}
+.cross{display:grid;grid-template-columns:repeat(4,1fr);gap:14px 10px;margin:22px 0 22px}
+.p-top{grid-column:2/4;grid-row:1}.p-left{grid-column:1/3;grid-row:2}.p-right{grid-column:3/5;grid-row:2}.p-bot{grid-column:2/4;grid-row:3}
+.seat{position:relative}
+.seat .box{display:grid;grid-template-columns:1fr 58px;background:var(--seat);border:1.5px solid var(--seatline);border-radius:28px;overflow:hidden;min-height:150px}
+.seat.dealer .box{border:3px solid var(--felt)}
+.seat .tag{position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:var(--felt);color:#fff;font-size:12px;font-weight:700;letter-spacing:1px;padding:3px 14px;border-radius:999px;text-transform:uppercase;z-index:2;white-space:nowrap}
+.seat .info{padding:14px 6px 10px 14px;min-width:0;display:flex;flex-direction:column}
+.seat .nm{font-weight:700;font-size:16px;text-transform:uppercase;letter-spacing:.6px;color:var(--windink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.seat .st{font-style:italic;color:var(--windink);opacity:.8;font-size:14px}
+.seat .sc{font-size:22px;font-weight:600;color:var(--windink);margin-top:6px;font-variant-numeric:tabular-nums}
+.seat .d{font-size:12px;font-weight:700;min-height:16px}
+.seat .stick{width:56px;height:7px;border-radius:4px;background:#fff;border:1px solid #cfcfcf;position:relative;margin:5px 0 0}
+.seat .stick:after{content:"";position:absolute;left:50%;top:50%;width:5px;height:5px;margin:-2.5px;border-radius:50%;background:var(--accent)}
+.seat .wind{background:var(--windbg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}
+.seat .wind .k{width:44px;height:44px;border-radius:50%;background:var(--seat);color:var(--windink);display:grid;place-items:center;font-size:24px;font-family:"Noto Serif SC","Songti SC",serif}
+.seat .wind .wl{font-size:11px;font-weight:700;letter-spacing:.4px;color:var(--windink);text-transform:uppercase}
+.seat.dealer .wind{background:var(--felt)}
+.seat.dealer .wind .k{background:#fff;color:var(--felt)}
+.seat.dealer .wind .wl{color:#fff}
+.calls{display:flex;gap:4px;padding-right:4px;margin-top:auto;padding-top:6px}
+.cb{flex:1 1 0;min-width:0;text-align:center;overflow:hidden;border:1.5px solid var(--windbg);background:transparent;color:var(--windink);border-radius:999px;padding:4px 2px;font:inherit;font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;cursor:pointer;white-space:nowrap}
+.cb.r.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.cb.p.on{background:var(--gold);border-color:var(--gold);color:#fff}
+.cb:disabled{opacity:.3;cursor:not-allowed}
+.seat.rii .box{box-shadow:0 0 0 2px var(--accent) inset}
+.tact{display:flex;gap:10px;align-items:stretch}
+.big-btn{flex:1;height:60px;border:0;border-radius:30px;background:var(--felt);color:#fff;font:inherit;font-size:17px;font-weight:600;letter-spacing:2.5px;text-transform:uppercase;cursor:pointer}
+.sq{width:66px;border:0;border-radius:24px;background:var(--windbg);color:var(--windink);font:inherit;font-weight:600;letter-spacing:.8px;text-transform:uppercase;cursor:pointer;display:grid;place-items:center}
+.trk-hint{font-size:12px;color:var(--muted);margin:12px 4px 0}
+.hist-h{display:flex;justify-content:space-between;align-items:center;margin:26px 4px 10px;font-family:"DM Mono",ui-monospace,monospace;font-size:16px}
+.lnk{border:0;background:none;color:var(--windink);font:inherit;font-family:"Outfit",sans-serif;font-size:14px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;text-decoration:underline dotted;text-underline-offset:4px;cursor:pointer;margin-left:14px}
+.lnk:disabled{opacity:.35}
+#v-table .log{background:var(--histbg);border:1.5px solid var(--seatline);border-radius:24px;padding:10px 16px;font-family:"DM Mono",ui-monospace,monospace;font-size:12.5px;min-height:110px}
+#v-table .log .empty{text-align:center;color:var(--muted);padding:34px 0;border:0}
+/* yaku reference */
+.ysec{background:#1d2421;color:#fff;border-radius:12px 12px 0 0;padding:9px 14px;font-weight:700;font-size:15px;display:flex;justify-content:space-between;align-items:center;margin-top:6px}
+@media (prefers-color-scheme:dark){.ysec{background:#000}}
+.ysec small{font-size:10px;letter-spacing:.6px;opacity:.75;font-weight:600}
+.ylist{margin-bottom:16px}
+.yc{background:var(--card);border:1px solid var(--line);border-top:0;padding:11px 12px}
+.yc:last-child{border-radius:0 0 12px 12px}
+.yc .top{display:flex;gap:8px;align-items:flex-start}
+.yc .tx{flex:1;min-width:0}
+.yc .en{font-weight:700;font-size:15px}
+.yc .ro{color:var(--muted);font-weight:500;font-size:13px}
+.yc .kj{color:var(--muted);font-size:13px;margin-left:2px}
+.yc .ds{font-size:13px;color:var(--muted);margin-top:3px;font-style:italic}
+.hn{display:flex;gap:3px;flex-shrink:0;align-items:center}
+.hn span{display:flex;flex-direction:column;align-items:center;background:var(--chip);border-radius:6px;padding:2px 6px;min-width:34px}
+.hn i{font-style:normal;font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+.hn b{font-size:15px}
+.rar{font-size:10.5px;font-weight:700;color:#fff;border-radius:6px;padding:3px 7px;text-align:center;margin-top:5px;white-space:nowrap}
+.rar.f{background:#2f9e44}.rar.u{background:#1c7ed6}.rar.r{background:#e03131}.rar.vr{background:#c2255c}.rar.ur{background:#7b1fa2}
+.tiles{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+.tg{display:inline-flex;gap:1px}
+.tl{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;width:23px;height:31px;background:#fffdf7;border:1px solid #cfc8b6;border-radius:4px;box-shadow:0 2px 0 #c9bf9f;font-family:"Noto Serif SC","Songti SC",serif;line-height:1;color:#1d2a4a}
+.tl .a{font-size:14px;font-weight:500}
+.tl .b{font-size:9px;margin-top:1px}
+.tl.m .b{color:#c8402f}
+.tl.p{color:#1f5aa8}.tl.s{color:#1f7a45}
+.tl.p .a,.tl.s .a{font-family:-apple-system,"Segoe UI",sans-serif;font-weight:800;font-size:14px}
+.tl.h .a{font-size:17px}
+.tl.g{color:#1f7a45}.tl.c{color:#c8402f}
+.tl .wh{width:13px;height:19px;border:1.5px solid #1f5aa8;border-radius:2px}
+.tl.x{background:#f0b429;border-color:#d99a14;box-shadow:0 2px 0 #c58a10}
+.dora-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin-top:8px}
+/* results */
+#v-results{font-family:"Outfit",-apple-system,sans-serif}
+.tour-h{display:flex;gap:10px;align-items:flex-end;margin:6px 4px 0}
+.tour-sel{margin-top:6px;font-weight:600;max-width:100%;color:var(--windink)}
+.fin-btn{width:100%;margin-top:10px;height:46px;border-radius:23px;border:1.5px solid var(--felt);background:transparent;color:var(--windink);font:inherit;font-weight:600;letter-spacing:1px;text-transform:uppercase;cursor:pointer}
+.over{background:#fff4d6;border:1.5px solid #e8b931;color:#5c4400;border-radius:16px;padding:12px 14px;margin:14px 0 0;display:flex;gap:10px;align-items:center;font-size:14px}
+.over .btn{flex-shrink:0;padding:8px 12px}
+@media (prefers-color-scheme:dark){.over{background:#3a2f12;color:#f5dc95}}
+.gm{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:12px}
+.gm-h{background:#0aa02a;color:#fff;padding:7px 12px;font-size:15px;display:flex;align-items:center;gap:8px;font-variant-numeric:tabular-nums}
+.gm-h .t{flex:1}
+.gm-h button{border:0;background:rgba(255,255,255,.2);color:#fff;border-radius:7px;font:inherit;font-size:12px;font-weight:600;padding:4px 8px;cursor:pointer}
+.gm-r{display:grid;grid-template-columns:28px 1fr 82px 92px;align-items:center;border-top:1px solid #1f7f86;padding:6px 12px 6px 8px}
+.gm-r:first-of-type{border-top:0}
+.gm-r .rk{width:22px;height:22px;border-radius:50%;background:var(--chip);display:grid;place-items:center;font-size:12px;font-weight:700;color:var(--muted)}
+.gm-r .rk.r1{background:#f0c35a;color:#2a2105}
+.gm-r .nm{font-size:19px;color:var(--ink);opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-left:6px}
+.gm-r .c{text-align:center;line-height:1.15}
+.gm-r .c small{display:block;font-size:11px;color:var(--muted)}
+.gm-r .c b{font-size:17px;font-weight:600;font-variant-numeric:tabular-nums}
+.up{color:#0f8a8a}.dn{color:#d32020}
+.gm-warn{font-size:12px;color:#b5501c;padding:4px 12px 8px}
+.lb{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:14px}
+.lb th{background:var(--felt);color:#fff;font-size:11px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;padding:8px 4px}
+.lb td{padding:9px 4px;border-top:1px solid var(--line);text-align:center;font-variant-numeric:tabular-nums}
+.lb td.n{text-align:left;font-weight:600;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lb td.tot{font-weight:700;font-size:16px}
+.lb .pl1 td:first-child{color:var(--gold);font-weight:800}
+.mrow{display:grid;grid-template-columns:22px 1fr 96px 44px;gap:6px;align-items:center;margin-bottom:6px}
+.mrow input{width:100%}
+.mrow span{color:var(--muted);font-weight:700;text-align:center;font-size:13px}
+.menu-btn{display:block;width:100%;text-align:left;margin-bottom:8px}
+textarea.box{width:100%;min-height:180px;font:12px/1.4 ui-monospace,monospace;color:var(--ink);background:var(--chip);border:1px solid var(--line);border-radius:10px;padding:10px}
+.toast{position:fixed;left:50%;bottom:120px;max-width:86vw;text-align:center;transform:translateX(-50%);background:#1d2421;color:#fff;padding:10px 16px;border-radius:999px;font-size:14px;z-index:30;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.on{opacity:1}
+/* live */
+.lv{display:flex;align-items:center;gap:8px;background:var(--card);border:1.5px solid var(--felt);border-radius:16px;padding:8px 8px 8px 14px;margin:14px 0 0;font-size:14px;color:var(--windink)}
+.lv.off{border-style:dashed;border-color:var(--seatline)}
+.lv.off span{flex:1;color:var(--muted)}
+.lv .btn{padding:8px 12px;font-size:14px}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#e8b931;margin-right:7px;vertical-align:1px}
+.dot.on{background:#2fb35a;box-shadow:0 0 0 3px rgba(47,179,90,.2)}
+.qr{background:#fff;border-radius:14px;padding:10px;width:min(280px,72vw);margin:0 auto 10px}
+.qr svg{display:block;width:100%;height:auto}
+.qr-code{text-align:center;font:700 32px/1 ui-monospace,monospace;letter-spacing:8px;color:var(--windink);margin:6px 0 10px}
+.row2{display:flex;gap:8px}.row2 .fin-btn{flex:1}
+#aMistake{border-color:var(--accent);color:var(--accent)}
+.marks{display:flex;flex-wrap:wrap;gap:3px;margin-top:2px}
+.mk{font-size:10px;font-weight:700;border-radius:5px;padding:1px 5px;text-transform:uppercase;letter-spacing:.3px}
+.mk.ch{background:var(--accent);color:#fff}.mk.dh{background:#6b726e;color:#fff}.mk.wn{background:#e8b931;color:#3a2a00}
+.seat.deadh .box{opacity:.75}
+.chip.dis{opacity:.35;pointer-events:none;text-decoration:line-through}
+.gm-ch{display:block;font-size:11px;color:var(--accent);font-weight:600}
+/* hand sheet */
+.sheet{position:fixed;inset:0;z-index:15;background:var(--bg);display:none;flex-direction:column}
+.sheet.on{display:flex}
+.sheet-h{background:var(--felt);color:#fff;display:flex;align-items:center;justify-content:space-between;padding:calc(12px + env(safe-area-inset-top)) 16px 12px;font-size:17px}
+.sheet-h .x{border:0;background:rgba(255,255,255,.15);color:#fff;width:34px;height:34px;border-radius:50%;font-size:16px;cursor:pointer}
+.sheet-body{flex:1;overflow:auto;padding:14px 12px 130px;max-width:720px;width:100%;margin:0 auto;-webkit-overflow-scrolling:touch}
+.result{display:none;z-index:16}
+.result.on{display:block}
+/* how to */
+.ht{background:var(--card);border:1px solid var(--line);border-radius:14px;margin-bottom:10px;overflow:hidden}
+.ht summary{list-style:none;cursor:pointer;padding:14px 16px;font-weight:700;font-size:16px;display:flex;align-items:center;gap:10px}
+.ht summary::-webkit-details-marker{display:none}
+.ht summary .ic{width:32px;height:32px;border-radius:50%;background:var(--windbg);color:var(--windink);display:grid;place-items:center;font-family:"Noto Serif SC","Songti SC",serif;font-size:16px;flex-shrink:0}
+.ht summary:after{content:"＋";margin-left:auto;color:var(--muted);font-weight:400}
+.ht[open] summary:after{content:"－"}
+.ht .bd{padding:0 16px 14px;font-size:14.5px;line-height:1.55}
+.ht .bd p{margin:0 0 10px}
+.ht .bd ul{margin:0 0 10px;padding-left:20px}
+.ht .bd li{margin-bottom:5px}
+.ht .ex{background:var(--chip);border-radius:10px;padding:10px 12px;margin:0 0 12px}
+.ht .ex .cap{font-size:12px;color:var(--muted);margin-top:6px}
+.ht .ex .tiles{margin-top:0}
+.ht h4{margin:12px 0 6px;font-size:14px}
+.tl.bk{background:#2a6b52;border-color:#1c4f3c;box-shadow:0 2px 0 #133a2b}
+.tl.sd{width:31px;height:23px;flex-direction:row;gap:2px}
+.tg{align-items:flex-end}
+.chip.auto:disabled{text-decoration:none;opacity:1;cursor:default}
+.chip.auto:not(.on){opacity:.45}
+/* modal */
+.mb{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:20;display:none;align-items:flex-end;justify-content:center}
+.mb.on{display:flex}
+.md{background:var(--card);width:100%;max-width:560px;border-radius:18px 18px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom));max-height:88vh;overflow:auto}
+@media (min-width:600px){.mb{align-items:center}.md{border-radius:18px}}
+.md h3{margin:0 0 12px;font-size:18px}
+.md .row{margin-bottom:10px}
+.preview{background:var(--chip);border-radius:12px;padding:10px 12px;margin:10px 0;font-size:14px}
+.preview b{font-size:18px}
+.mfoot{display:flex;gap:8px;margin-top:12px}
+.mfoot .btn{flex:1}
+.settings label{display:block;margin-bottom:8px}
+.settings .pr{display:grid;grid-template-columns:1fr 110px;gap:6px;margin-bottom:6px}
+.settings input{width:100%}
+.toggle{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0}
+</style>
+</head>
+<body>
+<header><div class="hwrap">
+  <h1>Riichi Mahjong <span>· 麻雀 Calculator</span></h1>
+  <nav>
+    <button data-tab="table" class="on">Table</button>
+    <button data-tab="results">Results</button>
+    <button data-tab="yaku">Yaku</button>
+    <button data-tab="howto">How to</button>
+  </nav>
+</div></header>
+
+<main>
+<!-- HAND SCORER -->
+
+
+<!-- TRACKER -->
+<section class="view on" id="v-table">
+  <div class="trk-head">
+    <div>
+      <div class="trk-title">Track</div>
+      <div class="trk-sub" id="tHand">Hand 1</div>
+      <div class="sticks">
+        <span class="mini"><small>Honba</small> <b id="tHonba">0</b></span>
+        <span class="mini"><small>Pot</small> <b id="tPot">0</b></span>
+      </div>
+    </div>
+    <div class="rw"><div class="rw-c" id="tRwK">東</div><div class="rw-l" id="tRound">East 1</div></div>
+  </div>
+  <div id="liveBar"></div>
+  <div id="gameOver"></div>
+  <div class="cross" id="players"></div>
+  <div class="tact">
+    <button class="big-btn" id="aWin">Record win</button>
+    <button class="sq" id="aDraw">Draw</button>
+    <button class="sq" id="aSet" aria-label="Players and settings"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="3" x2="5" y2="21"/><line x1="12" y1="3" x2="12" y2="21"/><line x1="19" y1="3" x2="19" y2="21"/><circle cx="5" cy="15" r="2.4" fill="var(--windbg)"/><circle cx="12" cy="8" r="2.4" fill="var(--windbg)"/><circle cx="19" cy="14" r="2.4" fill="var(--windbg)"/></svg></button>
+  </div>
+  <div class="row2"><button class="fin-btn" id="aMistake" style="flex:0 0 34%">Chombo…</button><button class="fin-btn" id="aFinish">Finish &amp; save</button></div>
+  <div class="trk-hint">Tap <b>Riichi</b> when a player declares (moves 1,000 to the pot). Tap <b>Pon</b> for each call they make — tap past 4 to clear. Both reset after every hand.</div>
+  <div class="hist-h"><span>History</span><span><button class="lnk" id="aUndo">Undo</button><button class="lnk" id="aReset">Reset game</button></span></div>
+  <ul class="log" id="log"></ul>
+</section>
+
+<section class="view" id="v-results">
+  <div class="tour-h">
+    <div style="flex:1;min-width:0"><div class="trk-title" style="font-size:28px">Results</div>
+      <select id="tourSel" class="tour-sel"></select></div>
+    <button class="sq" id="tourMenu" style="height:52px" aria-label="Tournament options">•••</button>
+  </div>
+  <div id="tourInfo" class="trk-hint" style="margin:6px 4px 14px"></div>
+  <div class="seg" id="resView" style="margin:0 0 12px"><button data-v="board" class="on">Leaderboard</button><button data-v="games">Games</button></div>
+  <div id="resBody"></div>
+  <div class="row" style="margin-top:14px;gap:8px">
+    <button class="btn" id="addGame" style="flex:1">+ Add game</button>
+    <button class="btn" id="copyRes" style="flex:1">Copy results</button>
+  </div>
+</section>
+
+<section class="view" id="v-yaku">
+  <input type="search" id="yq" placeholder="Search yaku — name, romaji or 漢字" style="width:100%;margin-bottom:12px;padding:10px 12px">
+  <div id="yref"></div>
+  <div class="hint" style="text-align:center;margin:8px 0 20px">Gold tiles = any tiles. Han shown as open / closed; "–" means closed only.</div>
+</section>
+
+
+<section class="view" id="v-howto">
+  <div id="howto"></div>
+</section>
+</main>
+
+<div class="sheet" id="handSheet">
+<div class="sheet-h"><b>Score the hand</b><button class="x" id="sheetX" aria-label="Close">✕</button></div>
+<div class="sheet-body" id="v-hand">
+  <div class="card rec" id="recBanner" style="display:none">
+    <div class="rec-h"><b>Recording win</b> <span id="recRound"></span><button class="lnk" id="recCancel">Cancel</button></div>
+    <div id="recPick">
+      <div id="recFromBox"><div class="grp">Dealt in (paid)</div><div class="chips" id="recF"></div></div>
+      <div class="grp" id="recWl">Winner</div><div class="chips" id="recW"></div>
+    </div>
+    <div id="recSteps"></div>
+    <div class="hint">Win type, dealer, riichi and open hand are filled in from the table. Pick the yaku below, then tap <b>Apply</b>. <button class="lnk" id="recQuick" style="margin:0">Enter han/fu directly instead</button></div>
+  </div>
+  <div class="card">
+    <h2>Situation</h2>
+    <div class="row"><span class="lbl">Win by</span><div class="seg" id="s-win"><button data-v="ron" class="on">Ron</button><button data-v="tsumo">Tsumo</button></div></div>
+    <div class="row"><span class="lbl">Winner</span><div class="seg" id="s-dealer"><button data-v="0" class="on">Non-dealer</button><button data-v="1">Dealer</button></div></div>
+    <div class="row"><span class="lbl">Hand</span><div class="seg" id="s-open"><button data-v="0" class="on">Closed</button><button data-v="1">Open (called)</button></div></div>
+  </div>
+
+  <div class="card">
+    <h2>Yaku</h2>
+    <div id="yaku"></div>
+    <div class="stepper" style="margin-top:8px;border-top:1px solid var(--line)">
+      <div class="t">Yakuhai<small>Each triplet of dragons, seat wind or round wind</small></div>
+      <div class="step" data-k="yakuhai"><button>−</button><b>0</b><button>+</button></div>
+    </div>
+    <div id="yakuWarn"></div>
+  </div>
+
+  <div class="card">
+    <h2>Dora</h2>
+    <div class="stepper"><div class="t">Dora<small>From the indicators</small></div><div class="step" data-k="dora"><button>−</button><b>0</b><button>+</button></div></div>
+    <div class="stepper"><div class="t">Red fives (aka)</div><div class="step" data-k="aka"><button>−</button><b>0</b><button>+</button></div></div>
+    <div class="stepper"><div class="t">Ura dora<small>Riichi only</small></div><div class="step" data-k="ura"><button>−</button><b>0</b><button>+</button></div></div>
+  </div>
+
+  <div class="card">
+    <h2>Yakuman</h2>
+    <div class="chips" id="ykm"></div>
+  </div>
+
+  <div class="card" id="fuCard">
+    <h2>Fu (minipoints)</h2>
+    <div class="row"><span class="lbl">Fu mode</span>
+      <select id="fuMode"><option value="0">Calculate from hand</option>
+      <option>20</option><option>25</option><option>30</option><option>40</option><option>50</option><option>60</option><option>70</option><option>80</option><option>90</option><option>100</option><option>110</option></select>
+    </div>
+    <div id="fuInputs">
+      <div class="row"><span class="lbl">Wait</span><select id="fuWait"><option value="0">Ryanmen / shanpon (0)</option><option value="2">Kanchan / penchan / tanki (+2)</option></select></div>
+      <div class="row"><span class="lbl">Pair</span><select id="fuPair"><option value="0">Number tiles / guest wind (0)</option><option value="2">Dragon, seat or round wind (+2)</option><option value="4">Double wind (+4)</option></select></div>
+      <div class="grp" style="margin-top:14px">Melds (sets)</div>
+      <div id="melds"></div>
+      <div class="hint">A triplet completed by <b>ron</b> on a shanpon wait counts as <b>open</b>. "Edge" = 1, 9, winds or dragons.</div>
+    </div>
+    <table class="breakdown" id="fuBreak" style="margin-top:10px"></table>
+  </div>
+
+  <div class="card">
+    <h2>Han breakdown</h2>
+    <table class="breakdown" id="hanBreak"></table>
+    <div class="stepper" style="margin-top:8px"><div class="t">Honba (counters)<small>+300 per counter</small></div><div class="step" data-k="honba"><button>−</button><b>0</b><button>+</button></div></div>
+    <div class="stepper"><div class="t">Riichi sticks on table<small>+1,000 each to the winner</small></div><div class="step" data-k="sticks"><button>−</button><b>0</b><button>+</button></div></div>
+    <div class="row" style="margin-top:12px"><button class="btn full" id="resetHand">Clear yaku & dora</button></div>
+  </div>
+</div></div>
+
+<div class="result" id="resultBar"><div class="in">
+  <div class="grow"><div class="sub" id="rSub">Pick yaku to begin</div><div class="big" id="rBig">—</div><div class="sub" id="rTot"></div></div>
+  <button class="btn pri" id="toTracker" disabled>Record</button>
+</div></div>
+
+<div class="toast" id="toast"></div>
+<div class="mb" id="mb"><div class="md" id="md"></div></div>
+
+<script>
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const fmt=n=>Math.round(n).toLocaleString('en-US');
+const c100=x=>Math.ceil(x/100)*100;
+const WINDS=['East','South','West','North'];
+const store={get(k,d){try{const v=localStorage.getItem('rmj-'+k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem('rmj-'+k,JSON.stringify(v))}catch(e){}}};
+
+/* ---------- scoring core ---------- */
+let S=store.get('settings',{kiri:false});
+function scoreBase(han,fu,yk){
+  if(yk>0) return {base:8000*yk,label:yk>1?yk+'× Yakuman':'Yakuman'};
+  if(han>=13) return {base:8000,label:'Kazoe yakuman'};
+  if(han>=11) return {base:6000,label:'Sanbaiman'};
+  if(han>=8)  return {base:4000,label:'Baiman'};
+  if(han>=6)  return {base:3000,label:'Haneman'};
+  if(han>=5)  return {base:2000,label:'Mangan'};
+  const b=fu*Math.pow(2,han+2);
+  if(b>=2000) return {base:2000,label:'Mangan'};
+  if(S.kiri&&((han===4&&fu===30)||(han===3&&fu===60))) return {base:2000,label:'Mangan (kiriage)'};
+  return {base:b,label:''};
+}
+function pay(base,dealer,tsumo,honba=0){
+  if(!tsumo){const r=c100(base*(dealer?6:4))+300*honba;return{ron:r,total:r}}
+  if(dealer){const a=c100(base*2)+100*honba;return{all:a,total:a*3}}
+  const d=c100(base*2)+100*honba,o=c100(base)+100*honba;return{dealer:d,other:o,total:d+2*o};
+}
+const payText=p=>p.ron!=null?fmt(p.ron):p.all!=null?fmt(p.all)+' all':fmt(p.other)+' / '+fmt(p.dealer);
+
+/* ---------- yaku data: c = closed han, o = open han (null = closed only) ---------- */
+const YAKU=[
+ ['1 han',[['riichi','Riichi',1,null],['ippatsu','Ippatsu',1,null],['pinfu','Pinfu',1,null],['iipeikou','Iipeikou',1,null],['tanyao','Tanyao',1,1],['haitei','Haitei / Houtei',1,1],['rinshan','Rinshan kaihou',1,1],['chankan','Chankan',1,1]]],
+ ['2 han',[['dblriichi','Double riichi',2,null],['chiitoi','Chiitoitsu',2,null],['sanshoku','Sanshoku',2,1],['ittsu','Ittsu',2,1],['chanta','Chanta',2,1],['toitoi','Toitoi',2,2],['sanankou','Sanankou',2,2],['sandoukou','Sanshoku doukou',2,2],['sankantsu','Sankantsu',2,2],['shousangen','Shousangen',2,2],['honroutou','Honroutou',2,2]]],
+ ['3+ han',[['ryanpeikou','Ryanpeikou',3,null],['junchan','Junchan',3,2],['honitsu','Honitsu',3,2],['chinitsu','Chinitsu',6,5]]]
+];
+const YMAP={};YAKU.forEach(g=>g[1].forEach(y=>YMAP[y[0]]=y));
+const EXCL=[['riichi','dblriichi'],['iipeikou','ryanpeikou'],['chanta','junchan'],['honitsu','chinitsu'],['pinfu','chiitoi'],['iipeikou','chiitoi'],['ryanpeikou','chiitoi'],['chanta','honroutou'],['junchan','honroutou']];
+const YAKUMAN=[['kokushi','Kokushi musou'],['suuankou','Suuankou'],['daisangen','Daisangen'],['shousuushii','Shousuushii'],['daisuushii','Daisuushii'],['tsuuiisou','Tsuuiisou'],['chinroutou','Chinroutou'],['ryuuiisou','Ryuuiisou'],['chuuren','Chuuren poutou'],['suukantsu','Suukantsu'],['tenhou','Tenhou'],['chiihou','Chiihou']];
+
+/* ---------- hand state ---------- */
+const blankHand=()=>({tsumo:false,dealer:false,open:false,y:{},ykm:{},yakuhai:0,dora:0,aka:0,ura:0,honba:0,sticks:0,fuMode:0,wait:0,pair:0,melds:[0,1,2,3].map(()=>({k:'seq',o:false,t:false}))});
+let H=Object.assign(blankHand(),store.get('hand',{}));
+
+function buildHandUI(){
+  $('#yaku').innerHTML=YAKU.map(([g,list])=>`<div class="grp">${g}</div><div class="chips">`+
+    `${g==='1 han'?'<button class="chip auto" id="autoTsumo" disabled>Menzen tsumo <small>auto</small></button>':''}`+
+    list.map(([id,n,c,o])=>`<button class="chip" data-y="${id}">${n} <small>${o==null?c:(c===o?c:c+'/'+o)}</small></button>`).join('')+'</div>').join('')+
+    '<div class="hint">Numbers show han closed/open. Crossed-out yaku need a closed hand.</div>';
+  $('#ykm').innerHTML=YAKUMAN.map(([id,n])=>`<button class="chip" data-k="${id}">${n}</button>`).join('');
+  $('#melds').innerHTML=H.melds.map((m,i)=>`<div class="meld" data-i="${i}"><span class="n">${i+1}</span>
+    <div class="seg" data-f="k"><button data-v="seq">Run</button><button data-v="pon">Triplet</button><button data-v="kan">Kan</button></div>
+    <div class="seg" data-f="o"><button data-v="0">Closed</button><button data-v="1">Open</button></div>
+    <div class="seg" data-f="t"><button data-v="0">2–8</button><button data-v="1">Edge</button></div></div>`).join('');
+}
+
+function calcFu(){
+  const L=[];
+  if(!H.open&&H.y.chiitoi) return{fu:25,lines:[['Chiitoitsu (fixed)',25]]};
+  if(!H.open&&H.y.pinfu) return H.tsumo?{fu:20,lines:[['Pinfu tsumo (fixed)',20]]}:{fu:30,lines:[['Base',20],['Closed ron',10]]};
+  let f=20;L.push(['Base',20]);
+  if(!H.open&&!H.tsumo){f+=10;L.push(['Closed ron',10])}
+  if(H.tsumo){f+=2;L.push(['Tsumo',2])}
+  if(H.wait){f+=2;L.push(['Wait',2])}
+  if(H.pair){f+=H.pair;L.push(['Pair',H.pair])}
+  H.melds.forEach((m,i)=>{if(m.k==='seq')return;const v=2*(m.k==='kan'?4:1)*(m.o?1:2)*(m.t?2:1);f+=v;L.push([`Meld ${i+1} (${m.o?'open':'closed'} ${m.t?'edge ':''}${m.k==='kan'?'kan':'triplet'})`,v])});
+  let r=Math.ceil(f/10)*10;
+  if(r!==f)L.push([`Round up ${f} →`,r]);
+  if(H.open&&r<30){r=30;L.push(['Open hand minimum',30])}
+  return{fu:r,lines:L};
+}
+function calcHan(){
+  const L=[];let han=0;
+  for(const id in H.y){if(!H.y[id])continue;const y=YMAP[id];const v=H.open?y[3]:y[2];if(v==null)continue;han+=v;L.push([y[1],v])}
+  if(!H.open&&H.tsumo){han+=1;L.push(['Menzen tsumo',1])}
+  if(H.yakuhai){han+=H.yakuhai;L.push(['Yakuhai',H.yakuhai])}
+  const yakuHan=han;
+  if(H.dora){han+=H.dora;L.push(['Dora',H.dora])}
+  if(H.aka){han+=H.aka;L.push(['Aka dora',H.aka])}
+  if(H.ura){han+=H.ura;L.push(['Ura dora',H.ura])}
+  return{han,yakuHan,lines:L};
+}
+const ykmCount=()=>Object.values(H.ykm).filter(Boolean).length;
+let lastResult=null;
+
+function renderHand(){
+  const setSeg=(sel,val)=>$$(sel+' button').forEach(b=>b.classList.toggle('on',b.dataset.v===String(val)));
+  setSeg('#s-win',H.tsumo?'tsumo':'ron');setSeg('#s-dealer',H.dealer?1:0);setSeg('#s-open',H.open?1:0);
+  $$('#yaku [data-y]').forEach(b=>{const y=YMAP[b.dataset.y];const dis=H.open&&y[3]==null;b.disabled=dis;b.classList.toggle('on',!!H.y[y[0]]&&!dis)});
+  const at=$('#autoTsumo');if(at)at.classList.toggle('on',!H.open&&H.tsumo);
+  $$('#ykm [data-k]').forEach(b=>b.classList.toggle('on',!!H.ykm[b.dataset.k]));
+  $$('#v-hand .step').forEach(s=>s.querySelector('b').textContent=H[s.dataset.k]);
+  $('#fuMode').value=String(H.fuMode);$('#fuWait').value=H.wait;$('#fuPair').value=H.pair;
+  $$('#melds .meld').forEach(row=>{const m=H.melds[+row.dataset.i];
+    row.querySelectorAll('.seg').forEach(sg=>{const f=sg.dataset.f;const val=f==='k'?m.k:(m[f]?'1':'0');sg.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.v===val))});
+    row.querySelectorAll('[data-f="o"],[data-f="t"]').forEach(sg=>sg.style.visibility=m.k==='seq'?'hidden':'visible')});
+  const fixedFu=!H.open&&(H.y.chiitoi||H.y.pinfu);
+  $('#fuInputs').style.display=(H.fuMode||fixedFu)?'none':'block';
+
+  const yk=ykmCount(),h=calcHan(),fc=calcFu();
+  const fu=H.fuMode?+H.fuMode:fc.fu;
+  $('#fuBreak').innerHTML=yk?'<tr><td>Fu doesn\'t matter for yakuman</td><td></td></tr>':H.fuMode?`<tr><td>Manual</td><td>${fu} fu</td></tr>`:fc.lines.map(l=>`<tr><td>${l[0]}</td><td>${l[1]}</td></tr>`).join('')+`<tr><td><b>Total</b></td><td>${fu} fu</td></tr>`;
+  $('#hanBreak').innerHTML=(yk?YAKUMAN.filter(y=>H.ykm[y[0]]).map(y=>`<tr><td>${y[1]}</td><td>Yakuman</td></tr>`).join(''):h.lines.map(l=>`<tr><td>${l[0]}</td><td>${l[1]}</td></tr>`).join('')+`<tr><td><b>Total</b></td><td>${h.han} han</td></tr>`)||'<tr><td colspan=2 class="hint">Nothing selected yet</td></tr>';
+
+  let warn='';
+  if(!yk&&h.han>0&&h.yakuHan===0)warn='No yaku — dora alone don\'t make a winning hand.';
+  else if(!yk&&H.ura&&!H.y.riichi&&!H.y.dblriichi)warn='Ura dora only count if the winner declared riichi.';
+  else if(!yk&&!H.fuMode&&H.tsumo&&!H.open&&H.y.pinfu&&false)warn='';
+  $('#yakuWarn').innerHTML=warn?`<div class="warn">${warn}</div>`:'';
+
+  const bar={big:$('#rBig'),sub:$('#rSub'),tot:$('#rTot')};
+  if(!yk&&(h.yakuHan===0)){bar.big.textContent='—';bar.sub.textContent=h.han?'Need at least one yaku':'Pick yaku to begin';bar.tot.textContent='';$('#toTracker').disabled=true;lastResult=null;store.set('hand',H);renderBanner();if(P)$('#toTracker').disabled=true;return}
+  const sb=scoreBase(h.han,fu,yk);const p=pay(sb.base,H.dealer,H.tsumo,H.honba);
+  const total=p.total+H.sticks*1000;
+  bar.sub.textContent=(yk?'':`${h.han} han ${sb.base>=2000&&h.han>=5?'':fu+' fu '}`)+(sb.label?'· '+sb.label+' ':'')+`· ${H.dealer?'Dealer':'Non-dealer'} ${H.tsumo?'tsumo':'ron'}`;
+  bar.big.textContent=payText(p);
+  bar.tot.textContent=H.tsumo||H.sticks?`Winner collects ${fmt(total)}`+(H.sticks?` (incl. ${H.sticks*1000} riichi)`:''):'';
+  $('#toTracker').disabled=false;
+  lastResult={han:yk?'Y'+yk:String(Math.min(h.han,13)),fu,tsumo:H.tsumo};
+  store.set('hand',H);
+  if(P)renderBanner();
+}
+
+function wireHand(){
+  const seg=(sel,fn)=>$(sel).addEventListener('click',e=>{const b=e.target.closest('button');if(b){fn(b.dataset.v);renderHand()}});
+  seg('#s-win',v=>H.tsumo=v==='tsumo');seg('#s-dealer',v=>H.dealer=v==='1');seg('#s-open',v=>H.open=v==='1');
+  $('#yaku').addEventListener('click',e=>{const b=e.target.closest('[data-y]');if(!b||b.disabled)return;const id=b.dataset.y;H.y[id]=!H.y[id];
+    if(H.y[id])EXCL.forEach(([a,c])=>{if(a===id)H.y[c]=false;if(c===id)H.y[a]=false});
+    if(id==='ippatsu'&&H.y.ippatsu&&!H.y.riichi&&!H.y.dblriichi)H.y.riichi=true;
+    renderHand()});
+  $('#ykm').addEventListener('click',e=>{const b=e.target.closest('[data-k]');if(!b)return;H.ykm[b.dataset.k]=!H.ykm[b.dataset.k];renderHand()});
+  $('#v-hand').addEventListener('click',e=>{const b=e.target.closest('.step button');if(!b)return;const k=b.parentNode.dataset.k;const d=b.textContent==='+'?1:-1;const max={yakuhai:4,dora:20,aka:4,ura:20,honba:20,sticks:20}[k];H[k]=Math.max(0,Math.min(max,H[k]+d));renderHand()});
+  $('#fuMode').onchange=e=>{H.fuMode=+e.target.value;renderHand()};
+  $('#fuWait').onchange=e=>{H.wait=+e.target.value;renderHand()};
+  $('#fuPair').onchange=e=>{H.pair=+e.target.value;renderHand()};
+  $('#melds').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const m=H.melds[+b.closest('.meld').dataset.i];const f=b.parentNode.dataset.f;m[f]=f==='k'?b.dataset.v:b.dataset.v==='1';renderHand()});
+  $('#resetHand').onclick=()=>{const keep={honba:H.honba,sticks:H.sticks,tsumo:H.tsumo,dealer:H.dealer,open:H.open,riichi:H.y.riichi};H=Object.assign(blankHand(),{honba:keep.honba,sticks:keep.sticks,tsumo:keep.tsumo,dealer:keep.dealer,open:keep.open});if(keep.riichi)H.y.riichi=true;renderHand();$('#v-hand').scrollTop=0};
+  $('#toTracker').onclick=()=>{if(!lastResult)return;
+    if(P){if(!recReady())return;const yaku=calcHan().lines.map(l=>l[0]).concat(YAKUMAN.filter(y=>H.ykm[y[0]]).map(y=>y[1]));
+      const order=recOrder();
+      P.done.push({w:order[P.idx],from:P.from,tsumo:H.tsumo,han:lastResult.han,fu:lastResult.fu,yaku:yaku.join(', ')});
+      if(P.idx<order.length-1){P.idx++;prefillFor(order[P.idx]);renderHand();$('#v-hand').scrollTop=0;toast('Now score '+T.players[order[P.idx]].name+'\'s hand');return}
+      applyWins(P.done);P=null;H=blankHand();renderHand();closeSheet();return}
+    closeSheet();openWin(lastResult)};
+  $('#recW').onclick=e=>{const b=e.target.closest('[data-w]');if(!b||P.idx>0)return;const w=+b.dataset.w;
+    if(P.ws.includes(w))P.ws=P.ws.filter(x=>x!==w);
+    else if(H.tsumo)P.ws=[w];
+    else if(P.ws.length<3)P.ws.push(w);
+    const o=recOrder();if(o.length)prefillFor(o[0]);
+    renderHand()};
+  $('#recF').onclick=e=>{const b=e.target.closest('[data-f]');if(!b||P.idx>0)return;P.from=+b.dataset.f;P.ws=P.ws.filter(w=>w!==P.from);const o=recOrder();if(o.length)prefillFor(o[0]);renderHand()};
+  $('#recCancel').onclick=$('#sheetX').onclick=()=>{P=null;H=blankHand();renderHand();closeSheet()};
+  $('#recQuick').onclick=()=>{const pre=lastResult?Object.assign({},lastResult,{tsumo:H.tsumo}):{tsumo:H.tsumo};P=null;renderHand();closeSheet();openWin(pre)};
+}
+/* pending win being recorded from the table */
+let P=null;
+/* winners, closest to the discarder first (that one takes honba + riichi sticks) */
+const recOrder=()=>!P?[]:(H.tsumo||P.from==null?P.ws.slice(0,1):P.ws.slice().sort((a,b)=>dist(P.from,a)-dist(P.from,b)));
+const recReady=()=>P&&P.ws.length>0&&(H.tsumo||(P.from!=null&&!P.ws.includes(P.from)));
+function prefillFor(w){const ts=H.tsumo;const first=P.idx===0;
+  H=blankHand();H.tsumo=ts;H.dealer=w===T.dealer;H.honba=first?T.honba:0;H.sticks=first?T.pot:0;
+  if(T.pon&&T.pon[w]>0)H.open=true;else H.y.riichi=!!T.riichi[w]}
+function startRecord(){P={ws:[],from:null,idx:0,done:[]};H=blankHand();H.honba=T.honba;H.sticks=T.pot;renderHand();openSheet()}
+function renderBanner(){
+  const bn=$('#recBanner');bn.style.display=P?'':'none';
+  if(!P){$('#toTracker').textContent='Record';return}
+  if(H.tsumo&&P.ws.length>1&&P.idx===0)P.ws=P.ws.slice(-1);
+  const order=recOrder(),multi=order.length>1;
+  $('#recRound').textContent=roundName()+(T.honba?' · '+T.honba+' honba':'');
+  const pick=P.idx===0;
+  $('#recPick').style.display=pick?'':'none';
+  $('#recFromBox').style.display=H.tsumo?'none':'';
+  $('#recWl').innerHTML=H.tsumo?'Winner':'Winner(s) <span style="font-weight:400">— tap more than one for double ron</span>';
+  $('#recF').innerHTML=T.players.map((p,i)=>`<button class="chip ${P.from===i?'on':''}" data-f="${i}">${esc(p.name)}</button>`).join('');
+  $('#recW').innerHTML=T.players.map((p,i)=>i===P.from&&!H.tsumo?'':`<button class="chip ${P.ws.includes(i)?'on':''} ${T.dead&&T.dead[i]?'dis':''}" data-w="${i}">${esc(p.name)}${i===T.dealer?' <small>dealer</small>':''}${T.riichi[i]?' <small>riichi</small>':''}${T.pon&&T.pon[i]?' <small>open</small>':''}</button>`).join('');
+  $('#recSteps').innerHTML=multi?`<div class="steps">${order.map((w,k)=>`<span class="stp ${k===P.idx?'on':k<P.idx?'done':''}">${k<P.idx?'✓ ':''}${esc(T.players[w].name)}${k===0&&(T.honba||T.pot)?' <small>+honba/sticks</small>':''}</span>`).join('')}</div><div class="hint" style="margin:6px 0 0">${order.length===2?'Double':'Triple'} ron: score each winner's hand in turn. ${esc(T.players[P.from].name)} pays each of them.</div>`:'';
+  const btn=$('#toTracker');btn.textContent=multi&&P.idx<order.length-1?'Next ›':'Apply';
+  if(!recReady())btn.disabled=true;
+  if(!P.ws.length)$('#rSub').textContent=H.tsumo?'Choose the winner above':'Choose who dealt in and the winner(s)';
+  else if(!H.tsumo&&P.from==null)$('#rSub').textContent='Choose who dealt in';
+  else if(multi&&lastResult)$('#rSub').textContent=T.players[order[P.idx]].name+' · '+$('#rSub').textContent;
+}
+
+/* ---------- tracker ---------- */
+const newGame=(names,start)=>({players:(names||['East','South','West','North']).map(n=>({name:n,score:start})),start,dealer:0,round:0,honba:0,pot:0,riichi:[false,false,false,false],pon:[0,0,0,0],delta:[0,0,0,0],log:[],startedAt:Date.now(),chombo:[0,0,0,0],cp:[0,0,0,0],warn:[0,0,0,0],dead:[false,false,false,false]});
+let T=store.get('game',null)||newGame(['Player 1','Player 2','Player 3','Player 4'],25000);
+let hist=store.get('hist',[]);
+const roundName=()=>WINDS[Math.floor(T.round/4)%4]+' '+(T.round%4+1);
+const seatWind=i=>WINDS[(i-T.dealer+4)%4];
+function snap(){hist.push(JSON.stringify(T));if(hist.length>60)hist.shift();if(LIVE)LIVE.pendHist=true}
+function save(){store.set('game',T);store.set('hist',hist);livePush()}
+const KANJI={East:'東',South:'南',West:'西',North:'北'};
+const POS=['p-bot','p-right','p-top','p-left']; // seats go counter-clockwise like a real table
+function renderTable(){
+  if(!T.pon)T.pon=[0,0,0,0];ensureMist();
+  const rw=WINDS[Math.floor(T.round/4)%4];
+  $('#tRwK').textContent=KANJI[rw];$('#tRound').textContent=roundName();
+  $('#tHand').textContent='Hand '+(T.log.length+1);
+  $('#tHonba').textContent=T.honba;$('#tPot').textContent=fmt(T.pot*1000);
+  $('#players').innerHTML=T.players.map((p,i)=>{const w=seatWind(i),dl=i===T.dealer,r=T.riichi[i],pn=T.pon[i];
+    return `<div class="seat ${POS[i]} ${dl?'dealer':''} ${r?'rii':''} ${T.dead[i]?'deadh':''}">${dl?'<div class="tag">Dealer</div>':''}
+    <div class="box"><div class="info">
+      <div class="nm">${esc(p.name)}</div><div class="st">Seat ${i+1}</div>
+      ${r?'<div class="stick" title="Riichi"></div>':''}
+      <div class="sc">${fmt(p.score)}</div>
+      <div class="d ${T.delta[i]>0?'pos':T.delta[i]<0?'neg':''}">${T.delta[i]?(T.delta[i]>0?'+':'')+fmt(T.delta[i]):''}</div>
+      ${(T.chombo[i]||T.dead[i]||T.warn[i])?`<div class="marks">${T.dead[i]?'<span class="mk dh">Dead hand</span>':''}${T.chombo[i]?`<span class="mk ch">Chombo${T.chombo[i]>1?' ×'+T.chombo[i]:''}</span>`:''}${T.warn[i]?`<span class="mk wn">Warn${T.warn[i]>1?' ×'+T.warn[i]:''}</span>`:''}</div>`:''}
+      <div class="calls"><button class="cb r ${r?'on':''}" data-r="${i}" ${pn?'disabled':''}>Riichi</button><button class="cb p ${pn?'on':''}" data-p="${i}" ${r?'disabled':''}>Pon${pn>1?' ×'+pn:''}</button></div>
+    </div><div class="wind"><div class="k">${KANJI[w]}</div><div class="wl">${w}</div></div></div></div>`}).join('');
+  $('#log').innerHTML=T.log.slice().reverse().map(l=>`<li><span class="rd">${l.r}</span>${esc(l.t)}</li>`).join('')||'<li class="empty">No rounds logged yet</li>';
+  const bust=T.players.some(p=>p.score<0),done=T.round>=8;
+  $('#gameOver').innerHTML=(bust||done)?`<div class="over"><span style="flex:1">${bust?'Someone is below zero':'South 4 is finished'} — game over?</span><button class="btn pri" onclick="finishGame()">Finish</button></div>`:'';
+  renderUndo();liveStatus();
+  save();
+}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function endHand(dealerStays,drawn){
+  T.riichi=[false,false,false,false];T.pon=[0,0,0,0];T.dead=[false,false,false,false];
+  if(dealerStays)T.honba++;
+  else{T.honba=drawn?T.honba+1:0;T.dealer=(T.dealer+1)%4;T.round++}
+}
+$('#players').addEventListener('click',e=>{
+  const pb=e.target.closest('[data-p]');
+  if(pb&&!pb.disabled){const i=+pb.dataset.p;T.pon[i]=(T.pon[i]+1)%5;renderTable();return}
+  const b=e.target.closest('[data-r]');if(!b||b.disabled)return;const i=+b.dataset.r;snap();
+  T.delta=[0,0,0,0];
+  if(T.riichi[i]){T.riichi[i]=false;T.players[i].score+=1000;T.pot--}else{T.riichi[i]=true;T.players[i].score-=1000;T.pot++;T.delta[i]=-1000}
+  renderTable()});
+$('#aUndo').onclick=()=>{if(LIVE){if(LIVE.connected&&LIVE.histLen)LIVE.ws.send('{"type":"undo"}');return}if(!hist.length)return;T=JSON.parse(hist.pop());renderTable()};
+{let armed=0;$('#aReset').onclick=()=>{const b=$('#aReset');
+  if(!armed){armed=setTimeout(()=>{armed=0;b.textContent='Reset game'},3000);b.textContent='Tap to confirm';return}
+  clearTimeout(armed);armed=0;b.textContent='Reset game';snap();T=newGame(T.players.map(p=>p.name),(typeof tour==='function'?tour().cfg.start:T.start)||25000);renderTable()}}
+
+/* modal helpers */
+function modal(html){$('#md').innerHTML=html;$('#mb').classList.add('on')}
+function closeModal(){$('#mb').classList.remove('on')}
+$('#mb').addEventListener('click',e=>{if(e.target.id==='mb')closeModal()});
+const chipRow=(name,excl)=>T.players.map((p,i)=>i===excl?'':`<button class="chip ${name==='t'&&T.dead&&T.dead[i]?'dis':''}" data-${name}="${i}">${esc(p.name)}${name==='t'&&T.dead&&T.dead[i]?' <small>dead</small>':''}</button>`).join('');
+const HAN_OPTS=[...Array(12)].map((_,i)=>`<option value="${i+1}">${i+1} han</option>`).join('')+'<option value="13">13+ han (kazoe)</option><option value="Y1">Yakuman</option><option value="Y2">Double yakuman</option><option value="Y3">Triple yakuman</option>';
+const FU_OPTS=[20,25,30,40,50,60,70,80,90,100,110].map(f=>`<option>${f}</option>`).join('');
+
+/* Quick han/fu entry — supports double/triple ron */
+const dist=(from,w)=>(w-from+4)%4; // 1 = next player after the discarder
+function openWin(pre){
+  const S2={tsumo:pre?!!pre.tsumo:false,from:null,ws:[],hf:{}};
+  const defHF=()=>({han:pre&&pre.han?pre.han:'1',fu:pre&&pre.fu?pre.fu:30});
+  modal(`<h3>Record win</h3>
+   <div class="row"><span class="lbl">Win by</span><div class="seg" id="wT"><button data-v="ron">Ron</button><button data-v="tsumo">Tsumo</button></div></div>
+   <div id="wFromBox"><div class="grp">Dealt in (paid)</div><div class="chips" id="wF"></div></div>
+   <div class="grp" id="wWl">Winner</div><div class="chips" id="wW"></div>
+   <div id="wHF"></div>
+   <div class="preview" id="wP"></div>
+   <div class="mfoot"><button class="btn" id="wC">Cancel</button><button class="btn pri" id="wOK" disabled>Apply</button></div>`);
+  const list=()=>(S2.tsumo?S2.ws:S2.ws.slice().sort((a,b)=>dist(S2.from,a)-dist(S2.from,b))).map(w=>({w,from:S2.from,tsumo:S2.tsumo,han:S2.hf[w].han,fu:+S2.hf[w].fu}));
+  const upd=()=>{
+    $$('#wT button').forEach(b=>b.classList.toggle('on',(b.dataset.v==='tsumo')===S2.tsumo));
+    $('#wFromBox').style.display=S2.tsumo?'none':'';
+    $('#wF').innerHTML=T.players.map((p,i)=>`<button class="chip ${S2.from===i?'on':''}" data-f="${i}">${esc(p.name)}</button>`).join('');
+    $('#wWl').innerHTML=S2.tsumo?'Winner':'Winner(s) <span style="font-weight:400">— tap more than one for double ron</span>';
+    $('#wW').innerHTML=T.players.map((p,i)=>i===S2.from&&!S2.tsumo?'':`<button class="chip ${S2.ws.includes(i)?'on':''} ${T.dead&&T.dead[i]?'dis':''}" data-w="${i}">${esc(p.name)}${i===T.dealer?' <small>dealer</small>':''}</button>`).join('');
+    const L=S2.ws.length&&(S2.tsumo||S2.from!=null)?list():[];
+    $('#wHF').innerHTML=S2.ws.map(w=>`<div class="row" style="margin-top:8px"><span class="lbl" style="color:var(--ink);font-weight:600">${esc(T.players[w].name)}</span><select data-hw="${w}">${HAN_OPTS}</select><select data-fw="${w}" style="${S2.hf[w].han.startsWith('Y')||+S2.hf[w].han>=5?'display:none':''}">${FU_OPTS}</select></div>`).join('');
+    S2.ws.forEach(w=>{$(`[data-hw="${w}"]`).value=S2.hf[w].han;$(`[data-fw="${w}"]`).value=String(S2.hf[w].fu)});
+    $('#wOK').disabled=!L.length;
+    if(!L.length){$('#wP').textContent=S2.tsumo?'Choose the winner':'Choose who dealt in, then the winner(s)';return}
+    $('#wP').innerHTML=winsPreview(L);
+  };
+  $('#wT').onclick=e=>{const b=e.target.closest('button');if(!b)return;S2.tsumo=b.dataset.v==='tsumo';if(S2.tsumo&&S2.ws.length>1)S2.ws=[S2.ws[S2.ws.length-1]];upd()};
+  $('#wF').onclick=e=>{const b=e.target.closest('[data-f]');if(!b)return;S2.from=+b.dataset.f;S2.ws=S2.ws.filter(w=>w!==S2.from);upd()};
+  $('#wW').onclick=e=>{const b=e.target.closest('[data-w]');if(!b)return;const w=+b.dataset.w;
+    if(S2.ws.includes(w))S2.ws=S2.ws.filter(x=>x!==w);else{if(S2.tsumo)S2.ws=[w];else if(S2.ws.length<3)S2.ws.push(w);S2.hf[w]=S2.hf[w]||defHF()}upd()};
+  $('#wHF').onchange=e=>{const h=e.target.dataset.hw,f=e.target.dataset.fw;if(h!=null)S2.hf[h].han=e.target.value;if(f!=null)S2.hf[f].fu=+e.target.value;upd()};
+  $('#wC').onclick=closeModal;
+  $('#wOK').onclick=()=>{applyWins(list());closeModal()};
+  upd();
+}
+function computeWin(W,honba=T.honba,pot=T.pot){
+  const yk=String(W.han).startsWith('Y')?+String(W.han).slice(1):0;const han=yk?0:+W.han;
+  const sb=scoreBase(han,+W.fu,yk);const isD=W.w===T.dealer;const p=pay(sb.base,isD,W.tsumo,honba);
+  return{sb,p,isD,yk,han,gain:p.total+pot*1000};
+}
+/* wins: ordered list (closest to the discarder first). Closest winner takes honba + riichi pot. */
+function winsPreview(L){
+  return L.map((W,k)=>{const r=computeWin(W,k?0:T.honba,k?0:T.pot);
+    return `<b>${esc(T.players[W.w].name)}</b>: ${payText(r.p)}${r.sb.label?' · '+r.sb.label:''} → gains <b>${fmt(r.gain)}</b>`+(k===0&&L.length>1&&(T.honba||T.pot)?' <small>(honba &amp; sticks)</small>':'')}).join('<br>')+
+    (L.length>1?`<br><span style="font-size:12px;color:var(--muted)">${L.length===2?'Double':'Triple'} ron — ${esc(T.players[L[0].from].name)} pays each winner.</span>`:'');
+}
+function applyWins(L){
+  if(!L.length)return;snap();const d=[0,0,0,0];let dealerWon=false;const tag=roundName()+(T.honba?`-${T.honba}`:'');
+  L.forEach((W,k)=>{const r=computeWin(W,k?0:T.honba,k?0:T.pot);dealerWon=dealerWon||r.isD;
+    if(!W.tsumo){d[W.from]-=r.p.ron;d[W.w]+=r.p.ron}
+    else for(let i=0;i<4;i++){if(i===W.w)continue;const a=r.isD?r.p.all:(i===T.dealer?r.p.dealer:r.p.other);d[i]-=a;d[W.w]+=a}
+    if(k===0)d[W.w]+=T.pot*1000;
+    const handTxt=r.yk?(r.yk>1?r.yk+'× yakuman':'Yakuman'):`${r.han} han${r.han<5?' '+W.fu+' fu':''}`;
+    T.log.push({r:tag,t:`${L.length>1?(L.length===2?'Double':'Triple')+' ron · ':''}${T.players[W.w].name} ${W.tsumo?'tsumo':'ron from '+T.players[W.from].name} · ${handTxt} · ${payText(r.p)}${W.yaku?' · '+W.yaku:''}`})});
+  d.forEach((x,i)=>T.players[i].score+=x);T.delta=d;T.pot=0;endHand(dealerWon,false);renderTable();
+}
+const applyWin=(W,yaku)=>applyWins([Object.assign({},W,{yaku})]);
+$('#aWin').onclick=startRecord;
+
+$('#aDraw').onclick=()=>{
+  const ten=new Set();
+  modal(`<h3>Exhaustive draw</h3><div class="grp">Who was tenpai?</div><div class="chips" id="dT">${chipRow('t')}</div>
+   <div class="preview" id="dP"></div><div class="mfoot"><button class="btn" id="dC">Cancel</button><button class="btn pri" id="dOK">Apply</button></div>`);
+  const upd=()=>{$$('#dT .chip').forEach(b=>b.classList.toggle('on',ten.has(+b.dataset.t)));const n=ten.size;
+    $('#dP').innerHTML=n===0||n===4?'No payments. Riichi sticks stay on the table.':`Tenpai get <b>+${fmt(3000/n)}</b> each, noten pay <b>${fmt(3000/(4-n))}</b> each.`+`<br>${ten.has(T.dealer)?'Dealer stays':'Dealer passes'}; honba +1.`};
+  $('#dT').onclick=e=>{const b=e.target.closest('[data-t]');if(!b)return;const i=+b.dataset.t;ten.has(i)?ten.delete(i):ten.add(i);upd()};
+  $('#dC').onclick=closeModal;
+  $('#dOK').onclick=()=>{snap();const n=ten.size;const d=[0,0,0,0];
+    if(n>0&&n<4)for(let i=0;i<4;i++)d[i]=ten.has(i)?3000/n:-3000/(4-n);
+    d.forEach((x,i)=>T.players[i].score+=x);T.delta=d;
+    T.log.push({r:roundName()+(T.honba?`-${T.honba}`:''),t:`Draw · tenpai: ${n?[...ten].map(i=>T.players[i].name).join(', '):'none'}`});
+    endHand(ten.has(T.dealer),true);closeModal();renderTable()};
+  upd();
+};
+
+$('#aSet').onclick=()=>{
+  modal(`<h3>Players & settings</h3><div class="settings">
+   <div class="grp">Names & scores (seat order, East first)</div>
+   ${T.players.map((p,i)=>`<div class="pr"><input type="text" data-n="${i}" value="${esc(p.name)}"><input type="number" step="100" data-s="${i}" value="${p.score}"></div>`).join('')}
+   <div class="row"><span class="lbl">Dealer</span><select id="sD">${T.players.map((p,i)=>`<option value="${i}">${esc(p.name)}</option>`).join('')}</select></div>
+   <div class="row"><span class="lbl">Round</span><select id="sR">${[...Array(8)].map((_,i)=>`<option value="${i}">${WINDS[Math.floor(i/4)]} ${i%4+1}</option>`).join('')}</select>
+     <span class="lbl" style="min-width:auto">Honba</span><input type="number" id="sH" min="0" style="width:70px" value="${T.honba}"></div>
+   <div class="toggle"><div>Kiriage mangan<div class="hint" style="margin:0">Round 4 han 30 fu & 3 han 60 fu up to mangan</div></div><div class="seg" id="sK"><button data-v="0">Off</button><button data-v="1">On</button></div></div>
+   <div class="grp">New game</div>
+   <div class="row"><span class="lbl">Start score</span><input type="number" step="1000" id="sS" style="width:110px" value="${T.start||25000}"></div>
+   <div class="row"><button class="btn red full" id="sNew">Start new game</button></div>
+  </div><div class="mfoot"><button class="btn" id="sC">Cancel</button><button class="btn pri" id="sOK">Save</button></div>`);
+  $('#sD').value=T.dealer;$('#sR').value=Math.min(T.round,7);
+  let kiri=S.kiri;const ku=()=>$$('#sK button').forEach(b=>b.classList.toggle('on',(b.dataset.v==='1')===kiri));ku();
+  $('#sK').onclick=e=>{const b=e.target.closest('button');if(b){kiri=b.dataset.v==='1';ku()}};
+  $('#sC').onclick=closeModal;
+  let armed=false;
+  $('#sNew').onclick=()=>{if(!armed){armed=true;$('#sNew').textContent='Tap again to wipe scores';return}
+    snap();const names=$$('[data-n]').map(x=>x.value.trim()||'Player');T=newGame(names,+$('#sS').value||25000);S.kiri=kiri;store.set('settings',S);closeModal();renderTable();renderHand()};
+  $('#sOK').onclick=()=>{snap();$$('[data-n]').forEach(x=>T.players[+x.dataset.n].name=x.value.trim()||'Player');
+    $$('[data-s]').forEach(x=>T.players[+x.dataset.s].score=+x.value||0);
+    T.dealer=+$('#sD').value;const nr=+$('#sR').value;if(nr!==Math.min(T.round,7))T.round=nr;T.honba=Math.max(0,+$('#sH').value||0);T.delta=[0,0,0,0];
+    S.kiri=kiri;store.set('settings',S);closeModal();renderTable();renderHand()};
+};
+
+/* ---------- mistakes: warning / dead hand / chombo ---------- */
+const CHOMBO_TYPES={mangan:'Reverse mangan (non-dealer pays 4,000 / 2,000; dealer pays 4,000 all)',all3000:'3,000 to each player',pts:'Points off final result (tournament / WRC-EMA style)'};
+const chCfg=()=>{const c=tour().cfg;return{type:c.chType||'mangan',pts:c.chPts!=null?c.chPts:20}};
+function ensureMist(){['chombo','cp','warn'].forEach(k=>{if(!T[k])T[k]=[0,0,0,0]});if(!T.dead)T.dead=[false,false,false,false]}
+function chomboPay(i){const c=chCfg();const d=[0,0,0,0];
+  if(c.type==='pts')return d;
+  for(let j=0;j<4;j++){if(j===i)continue;const a=c.type==='all3000'?3000:(i===T.dealer||j===T.dealer)?4000:2000;d[j]+=a;d[i]-=a}
+  return d}
+function mistakeForm(){
+  ensureMist();const M={who:null,sev:'chombo'};
+  modal(`<h3>Record a mistake</h3>
+   <div class="grp">Who?</div><div class="chips" id="mW">${T.players.map((p,i)=>`<button class="chip" data-mw="${i}">${esc(p.name)}</button>`).join('')}</div>
+   <div class="grp" style="margin-top:12px">How serious?</div>
+   <div class="seg" id="mS"><button data-v="chombo">Chombo</button><button data-v="dead">Dead hand</button><button data-v="warn">Warning</button></div>
+   <div class="preview" id="mP"></div>
+   <div class="mfoot"><button class="btn" id="mC">Cancel</button><button class="btn red" id="mOK" disabled>Apply</button></div>`);
+  const EX={chombo:'False ron/tsumo, ron while furiten, win with no yaku, noten riichi revealed at a draw, illegal kan after riichi, knocking over lots of tiles, peeking at ura dora.',
+    dead:'Wrong number of tiles, late/unclear riichi call, an invalid call that can\'t be taken back, drawing out of turn.',
+    warn:'Calling and taking it back before showing tiles, touching the wall early, other small slips.'};
+  const upd=()=>{
+    $$('#mW .chip').forEach(b=>b.classList.toggle('on',+b.dataset.mw===M.who));
+    $$('#mS button').forEach(b=>b.classList.toggle('on',b.dataset.v===M.sev));
+    $('#mOK').disabled=M.who==null;
+    let h=`<span style="font-size:12px;color:var(--muted)">e.g. ${EX[M.sev]}</span><br>`;
+    const nm=M.who==null?'The player':esc(T.players[M.who].name);
+    if(M.sev==='chombo'){const c=chCfg();
+      if(c.type==='pts')h+=`<b>${nm}</b> loses <b>${c.chPts||c.pts} points</b> from their final result. Table scores don't change.`;
+      else if(M.who!=null){const d=chomboPay(M.who);h+=`<b>${nm}</b> pays `+d.map((x,j)=>x>0?`${esc(T.players[j].name)} ${fmt(x)}`:'').filter(Boolean).join(', ')+` (total ${fmt(-d[M.who])}).`}
+      else h+=`Penalty: ${CHOMBO_TYPES[c.type]}.`;
+      h+='<br>The hand is <b>replayed</b>: riichi sticks go back, no honba added, same dealer.'}
+    else if(M.sev==='dead')h+=`<b>${nm}</b> keeps playing but <b>can't win, call or be tenpai</b> this hand. No points change.`;
+    else h+=`Logged as a warning for <b>${nm}</b>. No points change.`;
+    $('#mP').innerHTML=h+'<div style="font-size:12px;color:var(--muted);margin-top:6px">Change the chombo penalty in Results → ••• → Scoring rules.</div>'};
+  $('#mW').onclick=e=>{const b=e.target.closest('[data-mw]');if(b){M.who=+b.dataset.mw;upd()}};
+  $('#mS').onclick=e=>{const b=e.target.closest('button');if(b){M.sev=b.dataset.v;upd()}};
+  $('#mC').onclick=closeModal;
+  $('#mOK').onclick=()=>{const i=M.who;if(i==null)return;snap();ensureMist();const nm=T.players[i].name;const tag=roundName()+(T.honba?`-${T.honba}`:'');
+    if(M.sev==='chombo'){const c=chCfg();const d=chomboPay(i);
+      // return this hand's riichi sticks
+      T.riichi.forEach((r,j)=>{if(r){d[j]+=1000;T.pot--}});
+      d.forEach((x,j)=>T.players[j].score+=x);T.delta=d;T.chombo[i]++;if(c.type==='pts')T.cp[i]++;
+      T.log.push({r:tag,t:`CHOMBO · ${nm} · `+(c.type==='pts'?`−${c.pts} pts at game end`:`pays ${fmt(-(d[i]-(T.riichi[i]?1000:0)))}`)+' · hand replayed'});
+      T.riichi=[false,false,false,false];T.pon=[0,0,0,0];T.dead=[false,false,false,false];}
+    else if(M.sev==='dead'){T.dead[i]=true;T.delta=[0,0,0,0];T.log.push({r:tag,t:`Dead hand · ${nm}`})}
+    else{T.warn[i]++;T.delta=[0,0,0,0];T.log.push({r:tag,t:`Warning · ${nm}`})}
+    closeModal();renderTable();toast(M.sev==='chombo'?'Chombo recorded — replay the hand':M.sev==='dead'?nm+' has a dead hand':'Warning recorded')};
+  upd();
+}
+$('#aMistake').onclick=mistakeForm;
+
+/* ---------- tournaments & results ---------- */
+const UMA_PRESETS={'30,10,-10,-30':'10–30 (+30/+10/−10/−30)','20,10,-10,-20':'10–20 (+20/+10/−10/−20)','15,5,-5,-15':'5–15 (+15/+5/−5/−15)','10,5,-5,-10':'5–10 (+10/+5/−5/−10)','0,0,0,0':'No uma'};
+const ROUNDING={gosha:'Round .5 down (五捨六入)',shisha:'Round .5 up (四捨五入)',dec:'Keep decimals'};
+const defCfg=()=>({start:25000,ret:30000,uma:[30,10,-10,-30],round:'gosha',chType:'mangan',chPts:20});
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+let R=store.get('tour',null);
+if(!R||!R.list||!R.list.length){const id=uid();R={active:id,list:[{id,name:'Tournament 1',cfg:defCfg(),games:[]}]}}
+const tour=()=>R.list.find(t=>t.id===R.active)||R.list[0];
+const saveR=()=>{store.set('tour',R);livePush()};
+let resView='board';
+function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('on');clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove('on'),2200)}
+function roundPts(score,cfg){
+  const h=Math.round((score-cfg.ret)/100);
+  if(cfg.round==='dec')return h/10;
+  const a=Math.abs(h),sg=h<0?-1:1;let q=Math.floor(a/10);const r=a%10;
+  if(r>=(cfg.round==='gosha'?6:5))q++;return q===0?0:sg*q;
+}
+/* players: [{name,score}] in starting-seat order (East first). Ties go to the earlier seat. */
+function gamePoints(players,cfg){
+  const order=players.map((p,i)=>({...p,seat:i})).sort((a,b)=>b.score-a.score||a.seat-b.seat);
+  const okaTop=4*(cfg.ret-cfg.start)/1000;
+  order.forEach((p,r)=>{p.rank=r+1;p.pts=roundPts(p.score,cfg)+cfg.uma[r]});
+  if(cfg.round==='dec')order[0].pts=Math.round(((order[0].score-cfg.ret)/1000+cfg.uma[0]+okaTop)*10)/10;
+  else order[0].pts=-order.slice(1).reduce((a,p)=>a+p.pts,0);
+  const cpts=cfg.chPts!=null?cfg.chPts:20;order.forEach(p=>{p.pen=(p.cp||0)*cpts;if(p.pen)p.pts=Math.round((p.pts-p.pen)*10)/10});
+  const total=players.reduce((a,p)=>a+p.score,0);
+  return{order,total,expected:4*cfg.start};
+}
+const ptsTxt=v=>(v>0?'+':'')+(Number.isInteger(v)?v.toFixed(1):v.toFixed(1));
+const pad=n=>String(n).padStart(2,'0');
+function fmtDate(ts){const d=new Date(ts);let h=d.getHours();const ap=h>=12?'pm':'am';h=h%12||12;
+  return `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())} (${'Sun Mon Tue Wed Thu Fri Sat'.split(' ')[d.getDay()]}) ${pad(h)}:${pad(d.getMinutes())}${ap}`}
+const fmtDur=ms=>ms==null?'':` [${pad(Math.floor(ms/3600000))}h ${pad(Math.floor(ms/60000)%60)}m]`;
+const nkey=n=>n.trim().toLowerCase();
+
+function leaderboard(t){
+  const M={};
+  t.games.forEach(g=>{gamePoints(g.players,t.cfg).order.forEach(p=>{const k=nkey(p.name);
+    const e=M[k]||(M[k]={name:p.name.trim(),tot:0,n:0,rk:0,c:[0,0,0,0],best:-1e9});
+    e.tot+=p.pts;e.n++;e.rk+=p.rank;e.c[p.rank-1]++;e.ch=(e.ch||0)+(p.ch||0);e.best=Math.max(e.best,p.score)})});
+  return Object.values(M).map(e=>({...e,tot:Math.round(e.tot*10)/10})).sort((a,b)=>b.tot-a.tot||a.rk/a.n-b.rk/b.n);
+}
+function renderResults(){
+  const t=tour();
+  $('#tourSel').innerHTML=R.list.map(x=>`<option value="${x.id}">${x.live?'● Live: ':''}${esc(x.name)}</option>`).join('');$('#tourSel').value=t.id;
+  const c=t.cfg;
+  $('#tourInfo').innerHTML=`${t.games.length} game${t.games.length===1?'':'s'} · Start ${fmt(c.start)} · Return ${fmt(c.ret)} · Uma ${c.uma.map(u=>(u>0?'+':'')+u).join('/')} · ${ROUNDING[c.round]}`;
+  $$('#resView button').forEach(b=>b.classList.toggle('on',b.dataset.v===resView));
+  if(!t.games.length){$('#resBody').innerHTML='<div class="ht" style="padding:28px 16px;text-align:center;color:var(--muted)">No games yet. Finish a game on the Table tab, or add one manually.</div>';return}
+  if(resView==='board'){
+    const L=leaderboard(t);
+    $('#resBody').innerHTML=`<table class="lb"><tr><th>#</th><th style="text-align:left">Player</th><th>Total</th><th>Games</th><th>Avg place</th><th>1st</th><th>4th</th>${L.some(e=>e.ch)?'<th>Chombo</th>':''}</tr>`+
+      L.map((e,i)=>`<tr class="${i===0?'pl1':''}"><td>${i+1}</td><td class="n">${esc(e.name)}</td><td class="tot ${e.tot>=0?'up':'dn'}">${ptsTxt(e.tot)}</td><td>${e.n}</td><td>${(e.rk/e.n).toFixed(2)}</td><td>${e.c[0]}</td><td>${e.c[3]}</td>${L.some(x=>x.ch)?`<td class="${e.ch?'dn':''}">${e.ch||0}</td>`:''}</tr>`).join('')+'</table>'+
+      '<div class="trk-hint">Total = sum of game points (得点). Ties broken by average place.</div>';
+  }else{
+    $('#resBody').innerHTML=t.games.slice().sort((a,b)=>b.at-a.at).map(g=>{const r=gamePoints(g.players,t.cfg);
+      return `<div class="gm"><div class="gm-h"><span class="t">${fmtDate(g.at)}${fmtDur(g.dur)}</span><button data-edit="${g.id}">Edit</button><button data-del="${g.id}">Delete</button></div>`+
+      r.order.map(p=>`<div class="gm-r"><span class="rk ${p.rank===1?'r1':''}">${p.rank}</span><span class="nm">${esc(p.name)}${p.ch?`<span class="gm-ch">chombo ×${p.ch}${p.pen?` (−${p.pen} pts)`:''}</span>`:''}</span>
+        <span class="c"><small>得点(P)</small><b class="${p.pts>=0?'up':'dn'}">${p.pts.toFixed(1)}</b></span>
+        <span class="c"><small>スコア(点)</small><b class="${p.pts>=0?'up':'dn'}">${p.score}</b></span></div>`).join('')+
+      (r.total!==r.expected?`<div class="gm-warn">Scores add up to ${fmt(r.total)}, not ${fmt(r.expected)} — check for a typo or leftover riichi sticks.</div>`:'')+'</div>'}).join('');
+  }
+}
+$('#resView').onclick=e=>{const b=e.target.closest('button');if(b){resView=b.dataset.v;renderResults()}};
+$('#tourSel').onchange=e=>{R.active=e.target.value;saveR();renderResults()};
+$('#resBody').addEventListener('click',e=>{
+  const ed=e.target.closest('[data-edit]');if(ed){gameForm(tour().games.find(g=>g.id===ed.dataset.edit));return}
+  const dl=e.target.closest('[data-del]');if(!dl)return;
+  if(dl.dataset.armed){const t=tour();t.games=t.games.filter(g=>g.id!==dl.dataset.del);saveR();renderResults();toast('Game deleted');return}
+  dl.dataset.armed=1;dl.textContent='Sure?';setTimeout(()=>{if(dl.isConnected){delete dl.dataset.armed;dl.textContent='Delete'}},3000);
+});
+const knownNames=()=>{const s=new Set();R.list.forEach(t=>t.games.forEach(g=>g.players.forEach(p=>s.add(p.name.trim()))));T.players.forEach(p=>s.add(p.name));return[...s]};
+
+/* add / edit a game */
+function gameForm(g){
+  const t=tour();const isNew=!g;
+  const pl=g?g.players:[0,1,2,3].map(()=>({name:'',score:''}));
+  const d=new Date(g?g.at:Date.now());const loc=new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16);
+  modal(`<h3>${isNew?'Add game':'Edit game'}</h3>
+   <div class="hint" style="margin:0 0 10px">Enter final scores in <b>starting seat order</b> (the first dealer first) — used to break ties.</div>
+   <datalist id="nmList">${knownNames().map(n=>`<option value="${esc(n)}">`).join('')}</datalist>
+   ${pl.map((p,i)=>`<div class="mrow"><span>${'東南西北'[i]}</span><input type="text" list="nmList" placeholder="Name" data-gn="${i}" value="${esc(p.name)}"><input type="number" step="100" inputmode="numeric" placeholder="Score" data-gs="${i}" value="${p.score}"><input type="number" min="0" placeholder="0" data-gc="${i}" value="${p.ch||''}" title="Chombo count"></div>`).join('')}
+   <div class="hint" style="margin:-2px 0 6px;text-align:right">Last box = chombo count${t.cfg.chType==='pts'?` (−${t.cfg.chPts!=null?t.cfg.chPts:20} pts each)`:' (penalty already in scores)'}</div>
+   <div class="row" style="margin-top:10px"><span class="lbl">Played</span><input type="datetime-local" id="gAt" value="${loc}"></div>
+   <div class="row"><span class="lbl">Length (min)</span><input type="number" id="gDur" style="width:90px" value="${g&&g.dur!=null?Math.round(g.dur/60000):''}"></div>
+   <div class="preview" id="gP"></div>
+   <div class="mfoot"><button class="btn" id="gC">Cancel</button><button class="btn pri" id="gOK">Save</button></div>`);
+  const read=()=>[0,1,2,3].map(i=>{const ch=Math.max(0,Math.round(+$(`[data-gc="${i}"]`).value||0));return{name:$(`[data-gn="${i}"]`).value.trim(),score:Math.round(+$(`[data-gs="${i}"]`).value||0),ch,cp:t.cfg.chType==='pts'?ch:0}});
+  const upd=()=>{const ps=read();const tot=ps.reduce((a,p)=>a+p.score,0);
+    const ok=ps.every(p=>p.name)&&ps.some(p=>p.score);
+    let h=`Total: <b>${fmt(tot)}</b> ${tot===4*t.cfg.start?'✓':`<span class="dn">(should be ${fmt(4*t.cfg.start)})</span>`}`;
+    if(ok){const r=gamePoints(ps,t.cfg);h+='<br>'+r.order.map(p=>`${p.rank}. ${esc(p.name)} <b class="${p.pts>=0?'up':'dn'}" style="font-size:14px">${ptsTxt(p.pts)}</b>`).join(' · ')}
+    $('#gP').innerHTML=h;$('#gOK').disabled=!ok};
+  $('#md').addEventListener('input',upd);upd();
+  $('#gC').onclick=closeModal;
+  $('#gOK').onclick=()=>{const ps=read();const at=new Date($('#gAt').value).getTime()||Date.now();const dm=$('#gDur').value;const dur=dm===''?null:(+dm)*60000;
+    if(isNew)t.games.push({id:uid(),at,dur,players:ps});else Object.assign(g,{at,dur,players:ps});
+    saveR();closeModal();resView='games';renderResults();toast(isNew?'Game added':'Game updated')};
+}
+$('#addGame').onclick=()=>gameForm(null);
+
+/* finish the live game from the Table tab */
+function finishGame(){
+  const t=tour();
+  modal(`<h3>Finish game</h3>
+   <div class="row"><span class="lbl">Save to</span><select id="fT">${R.list.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('')}</select></div>
+   ${T.pot?`<div class="toggle"><div>Leftover riichi sticks (${fmt(T.pot*1000)})<div class="hint" style="margin:0">Usually go to the 1st-place player</div></div><div class="seg" id="fPot"><button data-v="1" class="on">To 1st</button><button data-v="0">Discard</button></div></div>`:''}
+   <div class="preview" id="fP"></div>
+   <div class="mfoot"><button class="btn" id="fC">Keep playing</button><button class="btn pri" id="fOK">Save &amp; start new game</button></div>`);
+  $('#fT').value=t.id;let potTo1=true;
+  const build=()=>{const tt=R.list.find(x=>x.id===$('#fT').value);ensureMist();const ps=T.players.map((p,i)=>({name:p.name,score:p.score,ch:T.chombo[i],cp:T.cp[i]}));
+    if(T.pot&&potTo1){const top=gamePoints(ps,tt.cfg).order[0].seat;ps[top].score+=T.pot*1000}
+    return{tt,ps}};
+  const upd=()=>{const{tt,ps}=build();const r=gamePoints(ps,tt.cfg);
+    $('#fP').innerHTML=r.order.map(p=>`${p.rank}. ${esc(p.name)} — ${fmt(p.score)} → <b class="${p.pts>=0?'up':'dn'}" style="font-size:15px">${ptsTxt(p.pts)}</b>`).join('<br>')+
+      (r.total!==r.expected?`<br><span class="dn" style="font-size:12px">Scores total ${fmt(r.total)} (expected ${fmt(r.expected)}).</span>`:'');
+    if(T.pot)$$('#fPot button').forEach(b=>b.classList.toggle('on',(b.dataset.v==='1')===potTo1))};
+  if(T.pot)$('#fPot').onclick=e=>{const b=e.target.closest('button');if(b){potTo1=b.dataset.v==='1';upd()}};
+  $('#fT').onchange=upd;upd();
+  $('#fC').onclick=closeModal;
+  $('#fOK').onclick=()=>{const{tt,ps}=build();tt.games.push({id:uid(),at:Date.now(),dur:T.startedAt?Date.now()-T.startedAt:null,players:ps});
+    snap();R.active=tt.id;saveR();T=newGame(T.players.map(p=>p.name),tt.cfg.start);hist=[];renderTable();closeModal();resView='games';renderResults();showTab('results');toast('Result saved')};
+}
+$('#aFinish').onclick=finishGame;
+
+/* tournament menu: new / rename / settings / backup */
+$('#tourMenu').onclick=()=>{const t=tour();
+  modal(`<h3>${esc(t.name)}</h3>
+   <button class="btn menu-btn" data-m="settings">Scoring rules (uma, return, rounding)</button>
+   <button class="btn menu-btn" data-m="rename">Rename tournament</button>
+   <button class="btn menu-btn" data-m="new">+ New tournament</button>
+   <button class="btn menu-btn" data-m="backup">Back up / restore all results</button>
+   ${R.list.length>1?'<button class="btn menu-btn red" data-m="delete">Delete this tournament</button>':''}
+   <div class="mfoot"><button class="btn" id="mC">Close</button></div>`);
+  $('#mC').onclick=closeModal;
+  $('#md').onclick=function menu(e){const b=e.target.closest('[data-m]');if(!b)return;const m=b.dataset.m;$('#md').onclick=null;
+    if(m==='settings')rulesForm();
+    if(m==='rename'||m==='new')nameForm(m);
+    if(m==='backup')backupForm();
+    if(m==='delete'){if(!b.dataset.armed){b.dataset.armed=1;b.textContent='Tap again to delete '+t.name+' and its games';$('#md').onclick=menu;return}
+      R.list=R.list.filter(x=>x.id!==t.id);R.active=R.list[0].id;saveR();closeModal();renderResults();toast('Tournament deleted')}};
+};
+function nameForm(mode){const t=tour();
+  modal(`<h3>${mode==='new'?'New tournament':'Rename'}</h3><input type="text" id="nN" style="width:100%" value="${mode==='new'?'':esc(t.name)}" placeholder="e.g. Fudan Autumn Cup">
+   ${mode==='new'?'<div class="hint">Uses the same scoring rules as the current tournament — change them after if needed.</div>':''}
+   <div class="mfoot"><button class="btn" id="nC">Cancel</button><button class="btn pri" id="nOK">Save</button></div>`);
+  $('#nN').focus();$('#nC').onclick=closeModal;
+  $('#nOK').onclick=()=>{const v=$('#nN').value.trim();if(!v)return;
+    if(mode==='new'){const id=uid();R.list.push({id,name:v,cfg:JSON.parse(JSON.stringify(t.cfg)),games:[]});R.active=id}else t.name=v;
+    saveR();closeModal();renderResults()};
+}
+function rulesForm(){const t=tour();const c=t.cfg;const key=c.uma.join(',');
+  modal(`<h3>Scoring rules</h3><div class="hint" style="margin:0 0 10px">Changing these recalculates every game in <b>${esc(t.name)}</b>.</div>
+   <div class="row"><span class="lbl">Start score</span><input type="number" step="1000" id="rS" style="width:110px" value="${c.start}"></div>
+   <div class="row"><span class="lbl">Return</span><input type="number" step="1000" id="rR" style="width:110px" value="${c.ret}"><span class="hint" style="margin:0">Oka to 1st: <b id="rOka"></b></span></div>
+   <div class="row"><span class="lbl">Uma</span><select id="rU">${Object.entries(UMA_PRESETS).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}<option value="custom">Custom…</option></select></div>
+   <div class="row" id="rUc" style="display:none">${[0,1,2,3].map(i=>`<input type="number" data-u="${i}" style="width:62px" value="${c.uma[i]}">`).join('')}</div>
+   <div class="row"><span class="lbl">Rounding</span><select id="rRd">${Object.entries(ROUNDING).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select></div>
+   <div class="row"><span class="lbl">Chombo</span><select id="rCh" style="max-width:100%">${Object.entries(CHOMBO_TYPES).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select></div>
+   <div class="row" id="rChPw"><span class="lbl">Points off</span><input type="number" id="rChP" style="width:80px" value="${c.chPts!=null?c.chPts:20}"><span class="hint" style="margin:0">per chombo (EMA/WRC: 20)</span></div>
+   <div class="mfoot"><button class="btn" id="rC">Cancel</button><button class="btn pri" id="rOK">Save</button></div>`);
+  $('#rU').value=UMA_PRESETS[key]?key:'custom';$('#rUc').style.display=UMA_PRESETS[key]?'none':'';$('#rRd').value=c.round;$('#rCh').value=c.chType||'mangan';const chv=()=>$('#rChPw').style.display=$('#rCh').value==='pts'?'':'none';chv();$('#rCh').onchange=chv;
+  const oka=()=>{$('#rOka').textContent=ptsTxt(4*((+$('#rR').value||0)-(+$('#rS').value||0))/1000)};oka();
+  $('#rS').oninput=$('#rR').oninput=oka;
+  $('#rU').onchange=e=>{const v=e.target.value;$('#rUc').style.display=v==='custom'?'':'none';if(v!=='custom')v.split(',').forEach((x,i)=>$(`[data-u="${i}"]`).value=x)};
+  $('#rC').onclick=closeModal;
+  $('#rOK').onclick=()=>{c.start=+$('#rS').value||25000;c.ret=+$('#rR').value||c.start;c.uma=[0,1,2,3].map(i=>+$(`[data-u="${i}"]`).value||0);c.round=$('#rRd').value;c.chType=$('#rCh').value;c.chPts=+$('#rChP').value||0;saveR();closeModal();renderResults();toast('Rules saved')};
+}
+function textModal(title,txt,extra){
+  modal(`<h3>${title}</h3><textarea class="box" id="tx">${esc(txt)}</textarea>${extra||''}<div class="mfoot"><button class="btn" id="txC">Close</button><button class="btn pri" id="txCopy">Copy</button></div>`);
+  $('#txC').onclick=closeModal;
+  $('#txCopy').onclick=async()=>{const v=$('#tx').value;try{await navigator.clipboard.writeText(v);toast('Copied')}catch(e){$('#tx').select();toast('Select all and copy manually')}};
+}
+function backupForm(){
+  textModal('Back up / restore',JSON.stringify(R),`<div class="hint">Results live only in this browser. Copy this text somewhere safe (e.g. a WeChat message to yourself). To restore, paste a backup over it and tap <b>Restore</b>.</div><button class="btn red full" id="bR" style="margin-top:10px">Restore from text above</button>`);
+  $('#bR').onclick=()=>{try{const v=JSON.parse($('#tx').value);if(!v.list||!v.list.length)throw 0;R=v;if(!R.list.find(t=>t.id===R.active))R.active=R.list[0].id;saveR();closeModal();renderResults();toast('Restored')}catch(e){toast('That doesn\'t look like a valid backup')}};
+}
+$('#copyRes').onclick=()=>{const t=tour();const L=leaderboard(t);
+  let s=`🀄 ${t.name} — standings after ${t.games.length} game${t.games.length===1?'':'s'}\n`+L.map((e,i)=>`${i+1}. ${e.name}  ${ptsTxt(e.tot)}  (${e.n} games, avg place ${(e.rk/e.n).toFixed(2)}${e.ch?`, chombo ×${e.ch}`:''})`).join('\n');
+  s+='\n\nGames:\n'+t.games.slice().sort((a,b)=>a.at-b.at).map(g=>fmtDate(g.at)+'\n'+gamePoints(g.players,t.cfg).order.map(p=>`  ${p.rank}. ${p.name}  ${p.score}  ${ptsTxt(p.pts)}`).join('\n')).join('\n');
+  textModal('Copy results',s);
+};
+
+/* ---------- live rooms (QR join) — only on the hosted website ---------- */
+let LIVE=null, LIVE_OK=false;
+const roomTid=c=>'room:'+c;
+const roomTour=()=>LIVE&&R.list.find(t=>t.id===roomTid(LIVE.code));
+const liveDoc=()=>{const t=roomTour();return{game:T,tour:t?{name:t.name,cfg:t.cfg,games:t.games}:null}};
+function liveStatus(){
+  const bar=$('#liveBar');if(!bar)return;
+  if(!LIVE_OK){bar.innerHTML='';return}
+  if(!LIVE){bar.innerHTML=`<div class="lv off"><span>Play on several phones?</span><button class="btn pri" id="lvStart">Share live game</button><button class="btn" id="lvJoin">Join</button></div>`;
+    $('#lvStart').onclick=startLive;$('#lvJoin').onclick=()=>joinPrompt();return}
+  const st=LIVE.connected?`<span class="dot on"></span>Live · <b>${LIVE.code}</b> · ${LIVE.online||1} online`:`<span class="dot"></span>Reconnecting… <b>${LIVE.code}</b>`;
+  bar.innerHTML=`<div class="lv"><span style="flex:1">${st}</span><button class="btn pri" id="lvQR">QR</button><button class="btn" id="lvLeave">Leave</button></div>`;
+  $('#lvQR').onclick=showQR;$('#lvLeave').onclick=leavePrompt;
+}
+function setRoomTour(code,tour,live){
+  const id=roomTid(code);const i=R.list.findIndex(t=>t.id===id);
+  const e={id,name:(tour&&tour.name)||('Room '+code),cfg:(tour&&tour.cfg)||defCfg(),games:(tour&&tour.games)||[],live};
+  if(i<0)R.list.push(e);else R.list[i]=e;store.set('tour',R);
+}
+function applyDoc(doc){
+  LIVE.applying=true;
+  try{
+    T=doc.game;if(!T.pon)T.pon=[0,0,0,0];if(!T.delta)T.delta=[0,0,0,0];
+    setRoomTour(LIVE.code,doc.tour,true);
+    if(!R.list.find(t=>t.id===R.active))R.active=roomTid(LIVE.code);
+    store.set('game',T);renderTable();renderResults();
+  }finally{LIVE.applying=false}
+  LIVE.lastJ=JSON.stringify(liveDoc());
+}
+function livePush(){
+  if(!LIVE||LIVE.applying||!LIVE.ready)return;
+  const doc=liveDoc(),j=JSON.stringify(doc);
+  if(j===LIVE.lastJ){LIVE.pendHist=false;return}
+  if(LIVE.inflight||!LIVE.connected){LIVE.dirty=true;return}
+  LIVE.inflight=true;LIVE.dirty=false;LIVE.sentJ=j;const h=!!LIVE.pendHist;LIVE.pendHist=false;
+  try{LIVE.ws.send(JSON.stringify({type:'set',base:LIVE.version,doc,hist:h}))}catch(e){LIVE.inflight=false;LIVE.dirty=true}
+}
+function liveConnect(){
+  if(!LIVE)return;clearTimeout(LIVE.retryT);
+  const ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/api/rooms/'+LIVE.code+'/ws');
+  LIVE.ws=ws;LIVE.inflight=false;
+  ws.onopen=()=>{if(LIVE&&LIVE.ws===ws){LIVE.connected=true;LIVE.tries=0;liveStatus()}};
+  ws.onmessage=ev=>{if(!LIVE||LIVE.ws!==ws)return;let m;try{m=JSON.parse(ev.data)}catch(e){return}
+    if(m.type==='presence'){LIVE.online=m.online;liveStatus();return}
+    if(m.type==='ack'){LIVE.version=m.version;LIVE.histLen=m.histLen;LIVE.lastJ=LIVE.sentJ;LIVE.inflight=false;renderUndo();if(LIVE.dirty)livePush();return}
+    if(m.type==='state'){
+      const first=!LIVE.ready;LIVE.ready=true;LIVE.histLen=m.histLen;LIVE.inflight=false;
+      // Reconnected and nobody else changed anything: keep our offline edits and send them.
+      const localJ=JSON.stringify(liveDoc());
+      if(!first&&!m.rejected&&m.version===LIVE.version&&localJ!==LIVE.lastJ){LIVE.dirty=false;livePush();return}
+      LIVE.version=m.version;LIVE.dirty=false;applyDoc(m.doc);renderUndo();
+      if(m.rejected)toast('Another phone updated first — please redo your last change');
+      else if(m.undo)toast('Undone');
+      else if(!first)toast('Table updated');
+      if(first&&LIVE.onJoined){LIVE.onJoined();LIVE.onJoined=null}
+    }};
+  ws.onclose=ev=>{if(!LIVE||LIVE.ws!==ws)return;LIVE.connected=false;liveStatus();
+    if(ev.code===4404||ev.code===4410){const c=LIVE.code;endLive(false);toast('Live game '+c+' no longer exists');return}
+    const wait=[1000,2000,4000,8000,15000][Math.min(LIVE.tries=(LIVE.tries||0)+1,5)-1];LIVE.retryT=setTimeout(liveConnect,wait)};
+  ws.onerror=()=>{};
+}
+function beginLive(code,onJoined){
+  if(LIVE)endLive(false);
+  LIVE={code,version:0,ready:false,connected:false,online:1,histLen:0,onJoined};store.set('live',{code});
+  liveConnect();liveStatus();
+}
+function endLive(keepCopy=true){
+  if(!LIVE)return;const c=LIVE.code;clearTimeout(LIVE.retryT);const ws=LIVE.ws;LIVE=null;
+  try{ws&&ws.close()}catch(e){}
+  store.set('live',null);
+  const t=R.list.find(x=>x.id===roomTid(c));
+  if(t){t.live=false;if(!/· room /.test(t.name))t.name+=' · room '+c;if(!keepCopy&&!t.games.length){R.list=R.list.filter(x=>x!==t)}}
+  if(!R.list.length){const id=uid();R.list.push({id,name:'Tournament 1',cfg:defCfg(),games:[]})}
+  if(!R.list.find(x=>x.id===R.active))R.active=R.list[0].id;
+  store.set('tour',R);liveStatus();renderTable();renderResults();
+}
+async function startLive(){
+  const btn=$('#lvStart');if(btn){btn.disabled=true;btn.textContent='Starting…'}
+  const t=tour();
+  try{
+    const r=await fetch('/api/rooms',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({doc:{game:T,tour:{name:t.name,cfg:t.cfg,games:t.games}}})});
+    if(!r.ok)throw 0;const {code}=await r.json();
+    setRoomTour(code,{name:t.name,cfg:t.cfg,games:t.games},true);R.active=roomTid(code);store.set('tour',R);
+    beginLive(code,showQR);
+  }catch(e){toast('Couldn\'t start a live game — check your connection');liveStatus()}
+}
+const joinURL=c=>location.origin+location.pathname+'?room='+c;
+function showQR(){
+  if(!LIVE)return;const url=joinURL(LIVE.code);let svg='';
+  try{const q=qrcode(0,'M');q.addData(url);q.make();svg=q.createSvgTag({cellSize:6,margin:2,scalable:true})}catch(e){svg='<div class="hint">QR unavailable — share the code instead.</div>'}
+  modal(`<h3>Join this game</h3>
+   <div class="qr">${svg}</div>
+   <div class="qr-code">${LIVE.code}</div>
+   <div class="hint" style="text-align:center;margin:0 0 10px">Scan with the phone camera, or open <b>${esc(location.host)}</b> and tap <b>Join</b> with this code. Everyone who joins can record riichi, wins and draws.</div>
+   <div class="mfoot"><button class="btn" id="qC">Done</button><button class="btn pri" id="qCopy">Copy link</button></div>`);
+  $('#qC').onclick=closeModal;
+  $('#qCopy').onclick=async()=>{try{await navigator.clipboard.writeText(url);toast('Link copied')}catch(e){toast(url)}};
+}
+async function joinRoom(code,{ask=true}={}){
+  code=(code||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  if(!/^[A-Z2-9]{6}$/.test(code)){toast('Codes are 6 letters/numbers');return}
+  if(LIVE&&LIVE.code===code){toast('Already in '+code);return}
+  let info;try{const r=await fetch('/api/rooms/'+code);if(r.status===404){toast('No live game with code '+code);return}info=await r.json()}catch(e){toast('Couldn\'t reach the server');return}
+  const go=()=>{closeModal();beginLive(code,()=>{R.active=roomTid(code);store.set('tour',R);renderResults();showTab('table');toast('Joined '+code)})};
+  if(!ask||(!T.log.length&&!LIVE))return go();
+  modal(`<h3>Join live game ${code}?</h3><div class="preview">Players: <b>${(info.players||[]).map(esc).join(', ')}</b><br>${info.online} phone${info.online===1?'':'s'} connected</div>
+   <div class="hint">This phone's table will switch to the live game. Your saved results stay on the Results tab.</div>
+   <div class="mfoot"><button class="btn" id="jC">Cancel</button><button class="btn pri" id="jOK">Join</button></div>`);
+  $('#jC').onclick=closeModal;$('#jOK').onclick=go;
+}
+function joinPrompt(){
+  modal(`<h3>Join a live game</h3><input type="text" id="jCode" maxlength="7" autocapitalize="characters" autocomplete="off" placeholder="ABC123" style="width:100%;font-size:26px;letter-spacing:6px;text-align:center;text-transform:uppercase">
+   <div class="hint">Or just scan the host's QR code with your camera.</div>
+   <div class="mfoot"><button class="btn" id="jC">Cancel</button><button class="btn pri" id="jOK">Join</button></div>`);
+  $('#jCode').focus();$('#jC').onclick=closeModal;
+  const go=()=>{const v=$('#jCode').value;closeModal();joinRoom(v,{ask:false})};
+  $('#jOK').onclick=go;$('#jCode').onkeydown=e=>{if(e.key==='Enter')go()};
+}
+function leavePrompt(){
+  modal(`<h3>Leave live game ${LIVE.code}?</h3><div class="hint">The game keeps going for everyone else. This phone keeps a copy of the table and the room's results. You can rejoin any time with the same code.</div>
+   <div class="mfoot"><button class="btn" id="lC">Stay</button><button class="btn red" id="lOK">Leave</button></div>`);
+  $('#lC').onclick=closeModal;$('#lOK').onclick=()=>{closeModal();endLive(true);toast('Left the live game')};
+}
+function renderUndo(){$('#aUndo').disabled=LIVE?!LIVE.histLen:!hist.length}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&LIVE&&!LIVE.connected)liveConnect()});
+setInterval(()=>{if(LIVE&&LIVE.connected)try{LIVE.ws.send('{"type":"ping"}')}catch(e){}},25000);
+async function initLive(){
+  if(!/^https?:$/.test(location.protocol))return;
+  try{const r=await fetch('/api/health',{cache:'no-store'});LIVE_OK=r.ok&&(await r.json()).ok}catch(e){LIVE_OK=false}
+  if(!LIVE_OK)return;
+  const q=new URLSearchParams(location.search).get('room');
+  if(q){try{history.replaceState(null,'',location.pathname+location.hash)}catch(e){}joinRoom(q)}
+  else{const s=store.get('live',null);if(s&&s.code)beginLive(s.code)}
+  liveStatus();
+}
+
+/* ---------- yaku reference ---------- */
+const REF=[
+ ['Riichi and Tsumo',[
+  ['Riichi','Riichi','立直','Closed only. Declare when one tile from winning; costs a 1,000 stick.',null,1,'f',''],
+  ['Ippatsu','Ippatsu','一発','Win within one go-around after riichi, with no calls in between.',null,1,'f',''],
+  ['Double Riichi','Daburu riichi','両立直','Riichi on your very first turn, before any calls. Replaces riichi.',null,2,'r',''],
+  ['Menzen Tsumo','Menzen tsumo','門前清自摸和','Closed only. Win by drawing the tile yourself.',null,1,'f','']]],
+ ['Sequences and Suits',[
+  ['Pinfu','Pinfu','平和','Closed only. Four sequences, a non-value pair, and a two-sided (ryanmen) wait.',null,1,'f','123m 456p 234s 678s 55p'],
+  ['Half Flush','Honiisou','混一色','One suit plus honors.',2,3,'f','111m 234m 789m 444z 66z'],
+  ['Twin Sequences','Iipeikou','一盃口','Closed only. The same sequence twice in one suit.',null,1,'f','123p 123p xxx xxx xx'],
+  ['Three Suit Sequences','Sanshoku doujun','三色同順','The same sequence in all three suits.',1,2,'u','123m 123p 123s xxx xx'],
+  ['Straight','Ittsu','一気通貫','123, 456 and 789 of the same suit.',1,2,'u','123m 456m 789m xxx xx'],
+  ['Full Flush','Chinitsu','清一色','Entire hand is one suit, no honors.',5,6,'r','123m 456m 789m 222m 55m'],
+  ['Double Twin Sequences','Ryanpeikou','二盃口','Closed only. Two different iipeikou in one hand.',null,3,'r','123p 123p 678s 678s xx']]],
+ ['Honors, Triplets and Terminals',[
+  ['Value Triplet','Yakuhai','役牌','Triplet of dragons, your seat wind or the round wind. 1 han each — a double wind counts twice. Guest winds don\'t score.',1,1,'f','777z xxx xxx xxx xx'],
+  ['All Simples','Tanyao','断幺九','Only tiles 2–8: no terminals or honors.',1,1,'f','234m 567p 345s 678p 22s'],
+  ['All Triplets','Toitoi','対々和','Four triplets (or kans) and a pair.',2,2,'u','222m 777p 555s 888s 33z'],
+  ['Seven Pairs','Chiitoitsu','七対子','Closed only. Seven different pairs. Always 25 fu.',null,2,'u','11p 99m 22s 11z 77z 66z 55m'],
+  ['Half Outside Hand','Chanta','混全帯幺九','Every set and the pair include a terminal or honor.',1,2,'u','123m 789s 999p 111z 55z'],
+  ['Three Concealed Triplets','Sanankou','三暗刻','Three triplets made without calling; the rest of the hand can be open.',2,2,'r','333m 777p 222s xxx xx'],
+  ['Full Outside Hand','Junchan','純全帯幺九','Every set and the pair include a terminal (1 or 9); no honors.',2,3,'r','999m 123m 789p 123s 11p'],
+  ['Three Little Dragons','Shousangen','小三元','Two dragon triplets and a dragon pair (plus the 2 yakuhai).',2,2,'r','777z 555z xxx xxx 66z'],
+  ['Terminals and Honors','Honroutou','混老頭','Only terminals and honors.',2,2,'r','111p 999s 111z 777z 66z'],
+  ['Three Suit Triplets','Sanshoku doukou','三色同刻','The same triplet in all three suits.',2,2,'r','333m 333p 333s xxx xx'],
+  ['Three Kans','Sankantsu','三槓子','Three kans, open or closed.',2,2,'ur','4444m 2222p 3333z xxx xx'],
+  ['Mangan at Draw','Nagashi mangan','流し満貫','At an exhaustive draw, every discard of yours is a terminal or honor and none were called. Paid as mangan.',5,5,'ur','']]],
+ ['Other Yaku',[
+  ['Robbing a Kan','Chankan','槍槓','Ron on a tile someone adds to an open triplet to make a kan.',1,1,'r',''],
+  ['Under the River','Houtei raoyui','河底撈魚','Ron on the last discard of the hand.',1,1,'r',''],
+  ['Under the Sea','Haitei raoyue','海底摸月','Tsumo on the last tile of the wall.',1,1,'r',''],
+  ['Dead Wall Draw','Rinshan kaihou','嶺上開花','Win with the replacement tile drawn after a kan.',1,1,'r','']]],
+ ['Yakuman',[
+  ['Counted Yakuman','Kazoe yakuman','数え役満','13 han or more from regular yaku and dora combined.','Y','Y','vr',''],
+  ['Thirteen Orphans','Kokushi musou','国士無双','Closed only. One of every terminal and honor, plus one duplicate.',null,'Y','vr','19m 19p 19s 1234567z 1m'],
+  ['Four Concealed Triplets','Suuankou','四暗刻','Closed only. Four triplets made without calling.',null,'Y','vr','444m 333p 555s 666z 11p'],
+  ['Three Big Dragons','Daisangen','大三元','Triplets of all three dragons.','Y','Y','ur','555z 666z 777z xxx xx'],
+  ['Four Little Winds','Shousuushii','小四喜','Three wind triplets and a pair of the fourth wind.','Y','Y','ur','111z 222z 333z xxx 44z'],
+  ['Four Big Winds','Daisuushii','大四喜','Triplets of all four winds.','Y','Y','ur','111z 222z 333z 444z xx'],
+  ['All Honors','Tsuuiisou','字一色','Entire hand is winds and dragons.','Y','Y','ur','111z 444z 777z 555z 66z'],
+  ['All Terminals','Chinroutou','清老頭','Entire hand is 1s and 9s.','Y','Y','ur','111m 999m 111p 999s 99p'],
+  ['All Green','Ryuuiisou','緑一色','Only 2, 3, 4, 6, 8 sou and green dragons.','Y','Y','ur','234s 234s 666s 666z 88s'],
+  ['Nine Gates','Chuuren poutou','九蓮宝燈','Closed only. 1112345678999 of one suit plus any extra tile of that suit.',null,'Y','ur','1112345678999p 5p'],
+  ['Four Kans','Suukantsu','四槓子','Four kans.','Y','Y','ur','2222m 5555p 8888s 4444z xx'],
+  ['Blessing of Heaven','Tenhou','天和','Dealer wins on their first draw.',null,'Y','ur',''],
+  ['Blessing of Earth','Chiihou','地和','Non-dealer wins on their first draw, before any calls.',null,'Y','ur','']]]
+];
+const RAR={f:'Frequent',u:'Unusual',r:'Rare',vr:'Very rare',ur:'Ultra rare'};
+const NUM='一二三四五六七八九';
+function tileHTML(n,s){
+  if(s==='x')return '<span class="tl x"></span>';
+  if(s==='m')return `<span class="tl m"><span class="a">${NUM[n-1]}</span><span class="b">萬</span></span>`;
+  if(s==='p')return `<span class="tl p"><span class="a">${n}</span><span class="b">筒</span></span>`;
+  if(s==='s')return `<span class="tl s"><span class="a">${n}</span><span class="b">索</span></span>`;
+  if(n===5)return '<span class="tl h"><span class="wh"></span></span>';
+  const k='東南西北白發中'[n-1];return `<span class="tl h ${n===6?'g':n===7?'c':''}"><span class="a">${k}</span></span>`;
+}
+function tilesHTML(code){
+  if(!code)return '';
+  return '<div class="tiles">'+code.split(' ').map(g=>{let out='';
+    if(/^x+$/.test(g))out=[...g].map(()=>tileHTML(0,'x')).join('');
+    else{(g.match(/B|\^?\d+[mpsz]/g)||[]).forEach(tk=>{if(tk==='B'){out+='<span class="tl bk"></span>';return}
+      const side=tk[0]==='^';if(side)tk=tk.slice(1);const su=tk.slice(-1);[...tk.slice(0,-1)].forEach((d,j)=>{let h=tileHTML(+d,su);if(side&&j===0)h=h.replace('class="tl','class="tl sd');out+=h})})}
+    return `<span class="tg">${out}</span>`}).join('')+'</div>';
+}
+const hanCell=(l,v)=>`<span><i>${l}</i><b>${v==null?'–':v}</b></span>`;
+function renderYaku(q=''){
+  q=q.trim().toLowerCase();
+  let html=`<div class="ysec">Dora 宝牌<small>+1 HAN EACH · NOT A YAKU</small></div><div class="ylist"><div class="yc" style="border-radius:0 0 12px 12px">
+   <div class="ds" style="font-style:normal">The dora is the tile <b>after</b> the indicator. Numbers wrap 9 → 1, winds go E → S → W → N → E, dragons go 白 → 發 → 中 → 白. Red fives count as dora too; ura dora (under the indicator) count only for riichi winners.</div>
+   <div class="dora-row">${tilesHTML('3p')} → ${tilesHTML('4p')} &nbsp; ${tilesHTML('9m')} → ${tilesHTML('1m')}</div>
+   <div class="dora-row">${tilesHTML('1z')} → ${tilesHTML('2z')} → ${tilesHTML('3z')} → ${tilesHTML('4z')} → ${tilesHTML('1z')}</div>
+   <div class="dora-row">${tilesHTML('5z')} → ${tilesHTML('6z')} → ${tilesHTML('7z')} → ${tilesHTML('5z')}</div></div></div>`;
+  if(q)html='';
+  let any=false;
+  REF.forEach(([sec,list])=>{
+    const items=list.filter(y=>!q||(y[0]+' '+y[1]+' '+y[2]+' '+y[3]).toLowerCase().includes(q));
+    if(!items.length)return;any=true;
+    html+=`<div class="ysec">${sec}<small>OPEN · CLOSED</small></div><div class="ylist">`+items.map(([en,ro,kj,ds,o,c,r,t])=>`<div class="yc"><div class="top">
+      <div class="tx"><div class="en">${en} <span class="ro">/ ${ro}</span> <span class="kj">${kj}</span></div><div class="ds">${ds}</div></div>
+      <div><div class="hn">${hanCell('Open',o)}${hanCell('Closed',c)}</div><div class="rar ${r}">${RAR[r]}</div></div></div>${tilesHTML(t)}</div>`).join('')+'</div>';
+  });
+  if(q&&!any)html='<div class="hint" style="text-align:center;padding:30px 0">No yaku match that search.</div>';
+  $('#yref').innerHTML=html;
+}
+$('#yq').addEventListener('input',e=>renderYaku(e.target.value));
+renderYaku();
+
+/* ---------- how to ---------- */
+const EX=(code,cap)=>`<div class="ex">${tilesHTML(code)}${cap?`<div class="cap">${cap}</div>`:''}</div>`;
+const HOWTO=[
+ ['和','The goal',`<p>Be the first to complete a hand of <b>14 tiles</b>: <b>four sets + one pair</b>. Most of the time you hold 13 tiles and win with your 14th.</p>
+  <ul><li><b>Sequence</b> (shuntsu): three in a row of the same suit, like 3-4-5 bamboo. Honors can't form sequences.</li>
+  <li><b>Triplet</b> (koutsu): three identical tiles.</li>
+  <li><b>Quad</b> (kantsu / kan): four identical tiles, declared as a kan. Counts as one set.</li>
+  <li><b>Pair</b> (jantou): two identical tiles — your "head".</li></ul>
+  ${EX('234m 567p 999s 777z 55p','Three sets + pair shown with a triplet of 中 — 4 sets + pair = a complete hand')}
+  <p>Riichi has one extra rule: your hand <b>must contain at least one yaku</b> (a scoring pattern — see the Yaku tab). Dora alone don't count. Two special shapes break the 4-sets rule: <b>Seven Pairs</b> and <b>Thirteen Orphans</b>.</p>`],
+ ['牌','The tiles',`<p>136 tiles: four copies of each of 34 tiles.</p>
+  <h4>Suits (1–9)</h4>${EX('123456789m','Man / characters 萬')}${EX('123456789p','Pin / circles 筒')}${EX('123456789s','Sou / bamboo 索')}
+  <h4>Honors</h4>${EX('1234z 567z','Winds 東 South 西 North, then dragons: white 白, green 發, red 中')}
+  <ul><li><b>Terminals</b> = 1s and 9s. <b>Simples</b> = 2–8. Terminals + honors together are often called "yaochuu" tiles.</li>
+  <li>Most sets include one <b>red five</b> per suit (aka dora) worth +1 han each.</li></ul>`],
+ ['東','Setup & seats',`<ul><li>Four players, usually <b>25,000 points</b> each.</li>
+  <li>Each player has a <b>seat wind</b>. The dealer is always <b>East</b>; South sits to the dealer's right, then West, then North.</li>
+  <li>Build the wall, break it, and everyone takes 13 tiles. The dealer starts with 14 by taking the first draw.</li>
+  <li>The last 14 tiles are the <b>dead wall</b>. Flip the third tile from the end: that's the <b>dora indicator</b> (see Yaku tab → Dora).</li></ul>`],
+ ['打','Taking a turn',`<ol style="padding-left:20px;margin:0 0 10px"><li><b>Draw</b> a tile from the wall.</li><li>Optionally: declare tsumo (win), a closed/added kan, or riichi.</li><li><b>Discard</b> one tile face up in front of you, in neat rows of six.</li></ol>
+  <p>Play passes <b>counter-clockwise</b> — to the player on your right. Your discards are public and stay in order; they matter for furiten and for reading other hands.</p>`],
+ ['碰','Calling: Chi & Pon',`<p>When someone discards a tile you need, you can <b>call</b> it, show the finished set face up, then discard. You skip your draw.</p>
+  <h4>Pon 碰 — triplet</h4><p>You hold a pair and anyone discards the third. Turn the called tile sideways toward the player it came from. Play then continues from you, skipping anyone in between.</p>
+  ${EX('^555p','Pon called from the player on your left')}
+  <h4>Chi 吃 — sequence</h4><p>Only from the player on your <b>left</b> (the one right before you), to finish a run.</p>
+  ${EX('^435s','Chi: took the 4 to make 3-4-5')}
+  <h4>Priority</h4><p><b>Ron</b> beats <b>Pon/Kan</b>, which beat <b>Chi</b>.</p>
+  <h4>The cost of calling</h4><p>Calling makes your hand <b>open</b>. You lose closed-only yaku (riichi, pinfu, menzen tsumo, iipeikou…) and some yaku are worth 1 han less. You also need a yaku that works open — tanyao, yakuhai, toitoi or a flush are the usual ones. Call carefully!</p>`],
+ ['槓','Kan (quads)',`<p>A kan is four identical tiles. It counts as <b>one set</b>, so after declaring you hold one extra tile.</p>
+  <h4>Three kinds</h4><ul>
+  <li><b>Closed kan</b> (ankan): all four came from your own draws. Declare on your turn and lay it out with the ends face down. Your hand <b>stays closed</b>.</li>
+  ${''}</ul>${EX('B88sB','Closed kan — still a closed hand')}<ul style="margin-top:-4px">
+  <li><b>Open kan</b> (daiminkan): you hold three and call the fourth from someone's discard. Opens your hand.</li>
+  <li><b>Added kan</b> (shouminkan): you already have a pon and draw the fourth — add it to the pon. Someone waiting on that tile can <b>rob the kan</b> and win (chankan).</li></ul>
+  ${EX('^2222z','Open or added kan, called tile sideways')}
+  <h4>After every kan</h4><ul><li>Draw a <b>replacement tile</b> from the dead wall. If it wins, that's Rinshan kaihou (+1 han).</li>
+  <li>A <b>new dora indicator</b> is flipped — everyone gets more dora chances.</li>
+  <li>Kans give lots of fu (8–32), so they can boost your score a lot.</li>
+  <li>If four kans are declared by two or more players, the hand is usually an abortive draw.</li></ul>`],
+ ['立','Riichi',`<p>Riichi is the signature move: you lock your hand in exchange for points.</p>
+  <h4>You can riichi when</h4><ul><li>Your hand is <b>closed</b> (closed kans are fine).</li><li>You are <b>tenpai</b> — one tile from winning.</li><li>You have at least <b>1,000 points</b> and there are 4+ tiles left in the wall.</li></ul>
+  <h4>How to declare</h4><ol style="padding-left:20px;margin:0 0 10px"><li>Say "Riichi!"</li><li>Discard your tile <b>sideways</b>.</li><li>Put a 1,000-point stick on the table (tap <b>Riichi</b> on the Table tab).</li></ol>
+  <h4>After riichi</h4><ul><li>You <b>can't change your hand</b>: discard every tile you draw unless it wins you the hand. (A closed kan is allowed only if it doesn't change your wait.)</li>
+  <li>You can't defend or fold any more — that's the risk.</li></ul>
+  <h4>Rewards</h4><ul><li>+1 han (Riichi) — gives you a yaku even if the hand had none.</li><li><b>Ippatsu</b> +1 if you win within one go-around with no calls in between.</li><li><b>Ura dora</b>: flip the tiles under the dora indicators when you win.</li><li>Whoever wins next collects all riichi sticks on the table. On a draw they stay for the next hand.</li></ul>
+  <p><b>Double riichi</b>: riichi on your very first discard, with no calls before it — 2 han instead of 1.</p>`],
+ ['胡','Winning: Tsumo, Ron & Furiten',`<ul><li><b>Tsumo</b> (self-draw): you draw your winning tile. All three others pay you.</li>
+  <li><b>Ron</b>: you win off someone's discard. Only that player pays.</li></ul>
+  <h4>Tenpai & waits</h4><p>One tile from winning = <b>tenpai</b>. The tiles that complete your hand are your <b>wait</b>.</p>
+  ${EX('23m','Two-sided (ryanmen) wait: 1m or 4m wins')}
+  <h4>Furiten — the big rule</h4><p>If <b>any</b> of your winning tiles is in <b>your own discards</b>, you <b>can't win by ron</b> — only by tsumo.</p>
+  <ul><li>Also furiten for one turn if you let a winning tile go by without calling ron.</li><li>If you're in riichi and pass on a winning tile, you're furiten for the rest of the hand.</li></ul>
+  <h4>Double & triple ron</h4><p>If two players call ron on the same discard, both win (unless your group plays <b>head bump</b>, where only the player closest to the discarder's right wins). The discarder pays each winner separately; honba and riichi sticks go to the winner closest in turn order. If the dealer is one of the winners, the dealer stays. Many rules treat a <b>triple ron</b> as an abortive draw instead — if so, record it with Draw.</p>
+  <p>A ron declared while furiten (or with no yaku) is a <b>chombo</b> penalty, usually a mangan payment.</p>`],
+ ['点','Scoring basics',`<ul><li><b>Han</b> come from yaku and dora — they matter most.</li><li><b>Fu</b> (minipoints) come from the hand's shape: closed ron, tsumo, tricky waits, triplets and kans of terminals/honors. Rounded up to 10 (Seven Pairs is always 25).</li>
+  <li>From 5 han the fu stop mattering: <b>Mangan</b> 5 · <b>Haneman</b> 6–7 · <b>Baiman</b> 8–10 · <b>Sanbaiman</b> 11–12 · <b>Yakuman</b> 13+.</li>
+  <li>The dealer is paid <b>1.5×</b> (a non-dealer mangan is 8,000; a dealer mangan is 12,000).</li></ul>
+  <p>You don't need to memorize the table — tap <b>Record win</b> and this app does the math.</p>`],
+ ['局','Rounds, dealer & honba',`<ul><li>A <b>round</b> (East, then South) lasts until every player has been dealer once.</li>
+  <li>A standard game (<b>hanchan</b>) is East + South. A short game (<b>tonpuusen</b>) is East only.</li>
+  <li><b>Dealer repeats</b> (renchan) if they win or are tenpai at a draw. Otherwise the deal passes to the right.</li>
+  <li>Each repeat or draw adds a <b>honba</b> counter: +300 to the next win (+100 from each player on tsumo). A non-dealer win resets it.</li>
+  <li>The game usually ends after South 4 — or immediately when someone drops <b>below zero</b>. Highest score wins.</li></ul>`],
+ ['流','Draws',`<h4>Exhaustive draw (ryuukyoku)</h4><p>The wall runs out with no winner. Players reveal whether they're tenpai; noten players pay a total of <b>3,000</b> to the tenpai players.</p>
+  <ul><li>1 tenpai: gets 1,000 from each other player.</li><li>2 tenpai: each gets 1,500.</li><li>3 tenpai: noten player pays 1,000 to each.</li></ul>
+  <h4>Abortive draws (common)</h4><ul><li><b>Nine terminals</b>: on your first draw you hold 9+ different terminals/honors — you may cancel the hand.</li>
+  <li><b>Four winds</b>: everyone discards the same wind on the first go-around.</li><li><b>Four riichi</b>: all four players declare riichi.</li><li><b>Four kans</b> by different players.</li></ul>`],
+ ['罰','Mistakes & penalties (chombo)',`<p>Most rulebooks use three levels. Agree on the chombo penalty before a tournament.</p>
+  <h4>1 · Warning — no points</h4><p>Small slips: calling and taking it back before showing tiles, touching the wall too early.</p>
+  <h4>2 · Dead hand (agari-houki)</h4><p>Keep playing, but you <b>can't win, call tiles or be tenpai</b> this hand. For example: wrong number of tiles, a late or unclear riichi call, drawing out of turn.</p>
+  <h4>3 · Chombo — major</h4><p>False ron or tsumo, ron while furiten, a "win" with no yaku, noten riichi revealed at a draw, an illegal kan after riichi, knocking over many tiles, peeking at ura dora. The hand is <b>replayed</b>: riichi sticks go back, no honba is added, and the dealer stays.</p>
+  <ul><li><b>Casual Japanese</b>: pay a reverse mangan — 8,000 total (non-dealer pays the dealer 4,000 and others 2,000; a dealer pays 4,000 to each).</li>
+  <li><b>Tournaments (WRC / EMA)</b>: table scores don't change; <b>−20 points</b> off the final result after uma.</li>
+  <li><b>Some house rules</b>: 3,000 to each player.</li></ul>
+  <p>Tap <b>Chombo…</b> on the Table tab to record any of these.</p>`],
+ ['規','House rules to agree on',`<p>Rules vary between apps, clubs and friend groups. Settle these before you start:</p><ul>
+  <li><b>Kuitan</b>: does open tanyao count? (Usually yes.)</li><li><b>Red fives</b>: how many, and do they count as dora? (Usually 3, yes.)</li>
+  <li><b>Kiriage mangan</b>: round 4 han 30 fu / 3 han 60 fu up to mangan? (Toggle it in Table → settings.)</li>
+  <li><b>Double ron</b>: can two players win off one discard, or does only the nearest one win (head bump)?</li>
+  <li><b>Busting</b>: does the game end when someone goes below 0?</li><li><b>Double yakuman</b>: do some yakuman count twice?</li>
+  <li><b>Starting points & uma</b>: 25,000 start, and are bonus points given for final placement?</li></ul>`],
+ ['?','Using this app',`<ul><li><b>Table</b>: tap <b>Riichi</b> when a player declares (moves 1,000 to the pot). Tap <b>Pon</b> for each set they call so everyone can see who's open.</li>
+  <li><b>Record win</b>: opens the scorer. Pick who dealt in and the winner, then the yaku and dora, and tap Apply. For a <b>double ron</b>, tap both winners — you'll score each hand in turn.</li>
+  <li><b>Draw</b>: mark who was tenpai; payments and dealer changes are automatic.</li>
+  <li><b>Undo</b> fixes mistakes; the sliders button edits names, scores and rules.</li>
+  <li><b>Yaku</b> tab: searchable list of every scoring hand.</li></ul>`]
+];
+function renderHowto(){$('#howto').innerHTML=HOWTO.map(([ic,t,b],i)=>`<details class="ht"${i===0?' open':''}><summary><span class="ic">${ic}</span>${t}</summary><div class="bd">${b}</div></details>`).join('')}
+
+/* ---------- tabs ---------- */
+function showTab(t){$$('nav button').forEach(b=>b.classList.toggle('on',b.dataset.tab===t));$$('section.view').forEach(s=>s.classList.toggle('on',s.id==='v-'+t));
+  try{history.replaceState(null,'',t==='table'?location.pathname+location.search:'#'+t)}catch(e){};window.scrollTo(0,0)}
+function openSheet(){$('#handSheet').classList.add('on');$('#resultBar').classList.add('on');$('#v-hand').scrollTop=0;document.body.style.overflow='hidden'}
+function closeSheet(){$('#handSheet').classList.remove('on');$('#resultBar').classList.remove('on');document.body.style.overflow=''}
+$$('nav button').forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
+window.addEventListener('hashchange',()=>{const h=location.hash.slice(1);if(['table','results','yaku','howto'].includes(h))showTab(h)});
+
+buildHandUI();wireHand();renderHand();renderTable();renderHowto();renderResults();initLive();
+{const h=location.hash.slice(1);if(['results','yaku','howto'].includes(h))showTab(h)}
+</script>
+</body>
+</html>

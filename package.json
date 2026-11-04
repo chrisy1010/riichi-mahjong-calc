@@ -1,0 +1,16 @@
+{
+  "name": "riichi-mahjong-calc",
+  "version": "1.0.0",
+  "description": "Riichi mahjong calculator, score tracker and live QR scoreboard",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "wrangler": "^4.156.1"
+  },
+  "dependencies": {},
+  "private": true
+}
