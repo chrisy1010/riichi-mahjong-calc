@@ -13,5 +13,9 @@
     "bindings": [{ "name": "ROOMS", "class_name": "Room" }]
   },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Room"] }],
+  // Player accounts + saved games. Cloudflare creates this database automatically on the next deploy.
+  "d1_databases": [{ "binding": "DB", "database_name": "riichi-mahjong-stats" }],
+  // Usernames (comma-separated) allowed to download everyone's data from the Me tab.
+  "vars": { "ADMINS": "" },
   "observability": { "enabled": true }
 }
