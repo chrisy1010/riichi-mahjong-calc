@@ -54,6 +54,11 @@ const SCHEMA = [
   `CREATE TABLE IF NOT EXISTS hand_seats(game_id TEXT NOT NULL, idx INTEGER NOT NULL, seat INTEGER NOT NULL, result TEXT NOT NULL DEFAULT '',
      riichi INTEGER NOT NULL DEFAULT 0, open INTEGER NOT NULL DEFAULT 0, delta INTEGER NOT NULL DEFAULT 0,
      han INTEGER, fu INTEGER, yakuman INTEGER NOT NULL DEFAULT 0, yaku TEXT, PRIMARY KEY(game_id, idx, seat))`,
+  // Shared tournaments: one organizer, anyone with the code can view and add games. They never expire.
+  `CREATE TABLE IF NOT EXISTS tours(code TEXT PRIMARY KEY, name TEXT NOT NULL, cfg TEXT NOT NULL, owner_id INTEGER NOT NULL,
+     created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS tour_games(code TEXT NOT NULL, id TEXT NOT NULL, at INTEGER NOT NULL, dur INTEGER, players TEXT NOT NULL,
+     added_by INTEGER, created_at INTEGER NOT NULL, PRIMARY KEY(code, id))`,
 ];
 let schemaReady = null;
 function ensureSchema(env) {
@@ -372,8 +377,164 @@ async function adminReset(req, env) {
   return json({ ok: true });
 }
 
-/* ---------- router: /api/auth/*, /api/me/*, /api/users/*, /api/games, /api/claim, /api/admin/* ---------- */
-export const ACCOUNT_ROUTES = new Set(["auth", "me", "users", "games", "claim", "admin"]);
+/* ---------- shared tournaments ----------
+   The organizer (a signed-in player) creates one and gets a 6-character code.
+   Anyone with the code can see the standings and add finished games.
+   Only the organizer (or an admin) can rename it, change the rules, edit or delete games, or delete it. */
+const TOUR_CHARS = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // same alphabet as live rooms: no 0/O/1/I/L
+const TOUR_RE = /^[A-Z2-9]{6}$/;
+const MAX_TOUR_GAMES = 3000;
+const ROUNDS = new Set(["gosha", "shisha", "dec"]);
+const CHOMBO = new Set(["mangan", "all3000", "pts"]);
+const num = (v, lo, hi, d) => { const n = Number(v); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d; };
+
+function cleanCfg(c) {
+  if (!c || typeof c !== "object" || !Array.isArray(c.uma) || c.uma.length !== 4) throw new HttpError(400, "Bad scoring rules");
+  const start = Math.round(num(c.start, 1000, 1e6, 25000));
+  return {
+    start, ret: Math.round(num(c.ret, 1000, 1e6, start)),
+    uma: c.uma.map(u => Math.round(num(u, -200, 200, 0) * 10) / 10),
+    round: ROUNDS.has(c.round) ? c.round : "gosha",
+    chType: CHOMBO.has(c.chType) ? c.chType : "mangan",
+    chPts: Math.round(num(c.chPts, 0, 500, 20) * 10) / 10,
+  };
+}
+function cleanTourGame(g) {
+  if (!g || !ID_RE.test(String(g.id || "")) || !Array.isArray(g.players) || g.players.length !== 4) throw new HttpError(400, "Bad game data");
+  const at = Number(g.at);
+  return {
+    id: g.id, at: Number.isFinite(at) && at > 0 ? Math.round(at) : Date.now(),
+    dur: g.dur == null || g.dur === "" ? null : Math.round(num(g.dur, 0, 864e5, 0)),
+    players: g.players.map((p, i) => (p = p || {}, {
+      name: str(p && p.name, 40).trim() || "Player " + (i + 1),
+      score: int(p.score || 0, -1e6, 1e6), ch: int(p.ch || 0, 0, 99), cp: int(p.cp || 0, 0, 99),
+    })),
+  };
+}
+const cleanTourName = s => { const n = String(s || "").trim().slice(0, 80); if (!n) throw new HttpError(400, "Give the tournament a name"); return n; };
+const newTourCode = () => Array.from(crypto.getRandomValues(new Uint8Array(6)), b => TOUR_CHARS[b % TOUR_CHARS.length]).join("");
+
+async function loadTour(env, code) {
+  const t = TOUR_RE.test(code) ? await env.DB.prepare("SELECT * FROM tours WHERE code = ?").bind(code).first() : null;
+  if (!t) throw new HttpError(404, "No tournament with that code");
+  return t;
+}
+const canManage = (env, me, t) => !!me && (me.id === t.owner_id || isAdmin(env, me));
+function requireOrganizer(env, me, t) {
+  if (!me) throw new HttpError(401, "Sign in as the organizer to do that");
+  if (!canManage(env, me, t)) throw new HttpError(403, "Only the organizer can do that");
+}
+async function tourJson(env, me, code) {
+  const t = await loadTour(env, code);
+  const [owner, games] = await env.DB.batch([
+    env.DB.prepare("SELECT username, display FROM users WHERE id = ?").bind(t.owner_id),
+    env.DB.prepare("SELECT id, at, dur, players FROM tour_games WHERE code = ? ORDER BY at, id").bind(code),
+  ]);
+  return json({
+    code: t.code, name: t.name, cfg: JSON.parse(t.cfg), updatedAt: t.updated_at,
+    owner: owner.results[0] || null, isOwner: canManage(env, me, t),
+    games: games.results.map(g => ({ id: g.id, at: g.at, dur: g.dur, players: JSON.parse(g.players) })),
+  });
+}
+const touch = (env, code) => env.DB.prepare("UPDATE tours SET updated_at = ? WHERE code = ?").bind(Date.now(), code);
+
+async function createTour(req, env, me) {
+  const b = await readBody(req, 1_500_000);
+  const name = cleanTourName(b.name), cfg = cleanCfg(b.cfg);
+  const games = Array.isArray(b.games) ? b.games.map(cleanTourGame) : [];
+  if (games.length > MAX_TOUR_GAMES) return err("Too many games");
+  const uniq = [...new Map(games.map(g => [g.id, g])).values()];
+  const now = Date.now();
+  for (let i = 0; i < 8; i++) {
+    const code = newTourCode();
+    try {
+      await env.DB.batch([
+        env.DB.prepare("INSERT INTO tours(code, name, cfg, owner_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)")
+          .bind(code, name, JSON.stringify(cfg), me.id, now, now),
+        env.DB.prepare(`INSERT INTO tour_games(code, id, at, dur, players, added_by, created_at)
+          SELECT ?1, j.value->>'id', j.value->>'at', j.value->>'dur', json(j.value->'players'), ?2, ?3 FROM json_each(?4) j`)
+          .bind(code, me.id, now, JSON.stringify(uniq)),
+      ]);
+      return await tourJson(env, me, code);
+    } catch (e) {
+      if (!/UNIQUE|PRIMARY KEY/i.test(String(e && e.message || e))) throw e;
+    }
+  }
+  return err("Couldn't make a tournament code — try again", 503);
+}
+
+async function updateTour(req, env, me, code) {
+  const t = await loadTour(env, code); requireOrganizer(env, me, t);
+  const b = await readBody(req);
+  const name = b.name != null ? cleanTourName(b.name) : t.name;
+  const cfg = b.cfg != null ? JSON.stringify(cleanCfg(b.cfg)) : t.cfg;
+  await env.DB.prepare("UPDATE tours SET name = ?, cfg = ?, updated_at = ? WHERE code = ?").bind(name, cfg, Date.now(), code).run();
+  return tourJson(env, me, code);
+}
+
+async function deleteTour(env, me, code) {
+  const t = await loadTour(env, code); requireOrganizer(env, me, t);
+  await env.DB.batch([
+    env.DB.prepare("DELETE FROM tour_games WHERE code = ?").bind(code),
+    env.DB.prepare("DELETE FROM tours WHERE code = ?").bind(code),
+  ]);
+  return json({ ok: true });
+}
+
+async function addTourGame(req, env, me, code) {
+  await loadTour(env, code);
+  const g = cleanTourGame(await readBody(req));
+  const n = await env.DB.prepare("SELECT COUNT(*) n FROM tour_games WHERE code = ?").bind(code).first();
+  if (n.n >= MAX_TOUR_GAMES) return err("This tournament is full");
+  // Same game id sent twice (a retry after a dropped connection) is ignored rather than duplicated.
+  await env.DB.batch([
+    env.DB.prepare("INSERT OR IGNORE INTO tour_games(code, id, at, dur, players, added_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
+      .bind(code, g.id, g.at, g.dur, JSON.stringify(g.players), me ? me.id : null, Date.now()),
+    touch(env, code),
+  ]);
+  return tourJson(env, me, code);
+}
+
+async function editTourGame(req, env, me, code, id) {
+  const t = await loadTour(env, code); requireOrganizer(env, me, t);
+  const g = cleanTourGame({ ...(await readBody(req)), id });
+  const r = await env.DB.prepare("UPDATE tour_games SET at = ?, dur = ?, players = ? WHERE code = ? AND id = ?")
+    .bind(g.at, g.dur, JSON.stringify(g.players), code, id).run();
+  if (!r.meta.changes) return err("Game not found", 404);
+  await touch(env, code).run();
+  return tourJson(env, me, code);
+}
+
+async function deleteTourGame(env, me, code, id) {
+  const t = await loadTour(env, code); requireOrganizer(env, me, t);
+  await env.DB.batch([env.DB.prepare("DELETE FROM tour_games WHERE code = ? AND id = ?").bind(code, id), touch(env, code)]);
+  return tourJson(env, me, code);
+}
+
+async function handleTours(request, env, me, parts) {
+  const [, , code, sub, id] = parts, method = request.method;
+  if (!code) {
+    if (method === "POST") return createTour(request, env, requireUser(me));
+    return err("Not found", 404);
+  }
+  if (!TOUR_RE.test(code)) return err("Tournament codes are 6 letters/numbers", 400);
+  if (!sub) {
+    if (method === "GET") return tourJson(env, me, code);
+    if (method === "POST") return updateTour(request, env, me, code);
+    if (method === "DELETE") return deleteTour(env, me, code);
+  }
+  if (sub === "games") {
+    if (!id && method === "POST") return addTourGame(request, env, me, code);
+    if (id && ID_RE.test(id)) {
+      if (method === "PUT") return editTourGame(request, env, me, code, id);
+      if (method === "DELETE") return deleteTourGame(env, me, code, id);
+    }
+  }
+  return err("Not found", 404);
+}
+
+/* ---------- router: /api/auth/*, /api/me/*, /api/users/*, /api/games, /api/claim, /api/tours/*, /api/admin/* ---------- */
+export const ACCOUNT_ROUTES = new Set(["auth", "me", "users", "games", "claim", "tours", "admin"]);
 
 export async function handleAccounts(request, env, parts) {
   if (!env.DB) return err("Accounts are not set up on this server", 503);
@@ -402,6 +563,7 @@ export async function handleAccounts(request, env, parts) {
     if (method === "GET" && area === "users" && a) return await lookupUser(env, cleanUsername(decodeURIComponent(a)));
     if (route === "POST games") return await saveGame(request, env, me);
     if (route === "POST claim") return await claimTable(request, env, requireUser(me));
+    if (area === "tours") return await handleTours(request, env, me, parts);
 
     if (area === "admin") {
       if (!isAdmin(env, requireUser(me))) return err("Admins only", 403);

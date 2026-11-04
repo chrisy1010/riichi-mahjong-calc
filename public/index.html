@@ -935,9 +935,9 @@ function leaderboard(t){
 }
 function renderResults(){
   const t=tour();
-  $('#tourSel').innerHTML=R.list.map(x=>`<option value="${x.id}">${x.live?'● Live: ':''}${esc(x.name)}</option>`).join('');$('#tourSel').value=t.id;
+  $('#tourSel').innerHTML=R.list.map(x=>`<option value="${x.id}">${tourLabel(x)}</option>`).join('');$('#tourSel').value=t.id;
   const c=t.cfg;
-  $('#tourInfo').innerHTML=`${t.games.length} game${t.games.length===1?'':'s'} · Start ${fmt(c.start)} · Return ${fmt(c.ret)} · Uma ${c.uma.map(u=>(u>0?'+':'')+u).join('/')} · ${ROUNDING[c.round]}`;
+  $('#tourInfo').innerHTML=`${t.games.length} game${t.games.length===1?'':'s'} · Start ${fmt(c.start)} · Return ${fmt(c.ret)} · Uma ${c.uma.map(u=>(u>0?'+':'')+u).join('/')} · ${ROUNDING[c.round]}`+sharedInfo(t);
   $$('#resView button').forEach(b=>b.classList.toggle('on',b.dataset.v===resView));
   if(!t.games.length){$('#resBody').innerHTML='<div class="ht" style="padding:28px 16px;text-align:center;color:var(--muted)">No games yet. Finish a game on the Table tab, or add one manually.</div>';return}
   if(resView==='board'){
@@ -947,7 +947,7 @@ function renderResults(){
       '<div class="trk-hint">Total = sum of game points (得点). Ties broken by average place.</div>';
   }else{
     $('#resBody').innerHTML=t.games.slice().sort((a,b)=>b.at-a.at).map(g=>{const r=gamePoints(g.players,t.cfg);
-      return `<div class="gm"><div class="gm-h"><span class="t">${fmtDate(g.at)}${fmtDur(g.dur)}</span><button data-edit="${g.id}">Edit</button><button data-del="${g.id}">Delete</button></div>`+
+      return `<div class="gm"><div class="gm-h"><span class="t">${fmtDate(g.at)}${fmtDur(g.dur)}</span>${canEdit(t)?`<button data-edit="${g.id}">Edit</button><button data-del="${g.id}">Delete</button>`:''}</div>`+
       r.order.map(p=>`<div class="gm-r"><span class="rk ${p.rank===1?'r1':''}">${p.rank}</span><span class="nm">${esc(p.name)}${p.ch?`<span class="gm-ch">chombo ×${p.ch}${p.pen?` (−${p.pen} pts)`:''}</span>`:''}</span>
         <span class="c"><small>得点(P)</small><b class="${p.pts>=0?'up':'dn'}">${p.pts.toFixed(1)}</b></span>
         <span class="c"><small>スコア(点)</small><b class="${p.pts>=0?'up':'dn'}">${p.score}</b></span></div>`).join('')+
@@ -959,7 +959,7 @@ $('#tourSel').onchange=e=>{R.active=e.target.value;saveR();renderResults()};
 $('#resBody').addEventListener('click',e=>{
   const ed=e.target.closest('[data-edit]');if(ed){gameForm(tour().games.find(g=>g.id===ed.dataset.edit));return}
   const dl=e.target.closest('[data-del]');if(!dl)return;
-  if(dl.dataset.armed){const t=tour();t.games=t.games.filter(g=>g.id!==dl.dataset.del);saveR();renderResults();toast('Game deleted');return}
+  if(dl.dataset.armed){const t=tour();t.games=t.games.filter(g=>g.id!==dl.dataset.del);if(t.shared)queueOp(t,'del',{id:dl.dataset.del});saveR();renderResults();toast('Game deleted');return}
   dl.dataset.armed=1;dl.textContent='Sure?';setTimeout(()=>{if(dl.isConnected){delete dl.dataset.armed;dl.textContent='Delete'}},3000);
 });
 const knownNames=()=>{const s=new Set();R.list.forEach(t=>t.games.forEach(g=>g.players.forEach(p=>s.add(p.name.trim()))));T.players.forEach(p=>s.add(p.name));return[...s]};
@@ -979,7 +979,8 @@ function gameForm(g){
    <div class="preview" id="gP"></div>
    <div class="mfoot"><button class="btn" id="gC">Cancel</button><button class="btn pri" id="gOK">Save</button></div>`);
   const read=()=>[0,1,2,3].map(i=>{const ch=Math.max(0,Math.round(+$(`[data-gc="${i}"]`).value||0));return{name:$(`[data-gn="${i}"]`).value.trim(),score:Math.round(+$(`[data-gs="${i}"]`).value||0),ch,cp:t.cfg.chType==='pts'?ch:0}});
-  const upd=()=>{const ps=read();const tot=ps.reduce((a,p)=>a+p.score,0);
+  const upd=()=>{if(!$('[data-gn="0"]'))return; // this listener outlives the form; ignore other dialogs
+    const ps=read();const tot=ps.reduce((a,p)=>a+p.score,0);
     const ok=ps.every(p=>p.name)&&ps.some(p=>p.score);
     let h=`Total: <b>${fmt(tot)}</b> ${tot===4*t.cfg.start?'✓':`<span class="dn">(should be ${fmt(4*t.cfg.start)})</span>`}`;
     if(ok){const r=gamePoints(ps,t.cfg);h+='<br>'+r.order.map(p=>`${p.rank}. ${esc(p.name)} <b class="${p.pts>=0?'up':'dn'}" style="font-size:14px">${ptsTxt(p.pts)}</b>`).join(' · ')}
@@ -987,7 +988,8 @@ function gameForm(g){
   $('#md').addEventListener('input',upd);upd();
   $('#gC').onclick=closeModal;
   $('#gOK').onclick=()=>{const ps=read();const at=new Date($('#gAt').value).getTime()||Date.now();const dm=$('#gDur').value;const dur=dm===''?null:(+dm)*60000;
-    if(isNew)t.games.push({id:uid(),at,dur,players:ps});else Object.assign(g,{at,dur,players:ps});
+    let G;if(isNew)t.games.push(G={id:uid(),at,dur,players:ps});else{Object.assign(g,{at,dur,players:ps});G=g}
+    if(t.shared)queueOp(t,isNew?'add':'edit',{id:G.id,game:JSON.parse(JSON.stringify(G))});
     saveR();closeModal();resView='games';renderResults();toast(isNew?'Game added':'Game updated')};
 }
 $('#addGame').onclick=()=>gameForm(null);
@@ -996,12 +998,14 @@ $('#addGame').onclick=()=>gameForm(null);
 function finishGame(){
   const t=tour();
   modal(`<h3>Finish game</h3>
-   <div class="row"><span class="lbl">Save to</span><select id="fT">${R.list.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('')}</select></div>
+   <div class="row"><span class="lbl">Save to</span><select id="fT">${R.list.filter(x=>!(x.shared&&x.shared.gone)).map(x=>`<option value="${x.id}">${tourLabel(x)}</option>`).join('')}</select></div>
    ${T.pot?`<div class="toggle"><div>Leftover riichi sticks (${fmt(T.pot*1000)})<div class="hint" style="margin:0">Usually go to the 1st-place player</div></div><div class="seg" id="fPot"><button data-v="1" class="on">To 1st</button><button data-v="0">Discard</button></div></div>`:''}
    <div class="preview" id="fP"></div>
    ${statsNote()}
    <div class="mfoot"><button class="btn" id="fC">Keep playing</button><button class="btn pri" id="fOK">Save &amp; start new game</button></div>`);
-  $('#fT').value=t.id;let potTo1=true;
+  // A live room linked to a shared tournament saves there by default.
+  const rt=roomTour(),lk=rt&&rt.sharedCode&&R.list.find(x=>x.id===sharedTid(rt.sharedCode));
+  $('#fT').value=(lk&&t===rt?lk:t).id;if(!$('#fT').value)$('#fT').selectedIndex=0;let potTo1=true;
   const build=()=>{const tt=R.list.find(x=>x.id===$('#fT').value);ensureMist();const ps=T.players.map((p,i)=>({name:p.name,score:p.score,ch:T.chombo[i],cp:T.cp[i]}));
     if(T.pot&&potTo1){const top=gamePoints(ps,tt.cfg).order[0].seat;ps[top].score+=T.pot*1000}
     return{tt,ps}};
@@ -1012,40 +1016,61 @@ function finishGame(){
   if(T.pot)$('#fPot').onclick=e=>{const b=e.target.closest('button');if(b){potTo1=b.dataset.v==='1';upd()}};
   $('#fT').onchange=upd;upd();
   $('#fC').onclick=closeModal;
-  $('#fOK').onclick=()=>{const{tt,ps}=build();tt.games.push({id:uid(),at:Date.now(),dur:T.startedAt?Date.now()-T.startedAt:null,players:ps});
+  $('#fOK').onclick=()=>{const{tt,ps}=build();const G={id:uid(),at:Date.now(),dur:T.startedAt?Date.now()-T.startedAt:null,players:ps};tt.games.push(G);
+    if(tt.shared)queueOp(tt,'add',{id:G.id,game:JSON.parse(JSON.stringify(G))});
     queueStats(tt,ps);
     snap();R.active=tt.id;saveR();T=newGame(T.players.map(p=>p.name),tt.cfg.start,T);hist=[];renderTable();closeModal();resView='games';renderResults();showTab('results');toast('Result saved')};
 }
 $('#aFinish').onclick=finishGame;
 
-/* tournament menu: new / rename / settings / backup */
-$('#tourMenu').onclick=()=>{const t=tour();
+/* tournament menu: new / rename / settings / share / join / backup */
+$('#tourMenu').onclick=()=>{const t=tour();const sh=t.shared,own=canEdit(t);
+  const it=[];
+  if(sh)it.push(['code','Show code / QR for players'],['refresh','Refresh standings']);
+  if(own)it.push(['settings','Scoring rules (uma, return, rounding)'],['rename','Rename tournament']);
+  it.push(['new','+ New tournament']);
+  if(STATS_OK){if(!sh&&!t.live)it.push(['share','Share with players (get a join code)']);it.push(['join','Join a tournament by code'])}
+  it.push(['backup','Back up / restore all results']);
+  if(sh){it.push(['leave','Remove from this phone']);if(sh.owner&&!sh.gone)it.push(['wipe','Delete for everyone'])}
+  else if(R.list.length>1)it.push(['delete','Delete this tournament']);
+  const red=new Set(['delete','leave','wipe']);
   modal(`<h3>${esc(t.name)}</h3>
-   <button class="btn menu-btn" data-m="settings">Scoring rules (uma, return, rounding)</button>
-   <button class="btn menu-btn" data-m="rename">Rename tournament</button>
-   <button class="btn menu-btn" data-m="new">+ New tournament</button>
-   <button class="btn menu-btn" data-m="backup">Back up / restore all results</button>
-   ${R.list.length>1?'<button class="btn menu-btn red" data-m="delete">Delete this tournament</button>':''}
+   ${sh?`<div class="hint" style="margin:-4px 0 10px">Shared · code <b>${sh.code}</b> · ${sh.owner?'you are the organizer':'organizer: '+esc(sh.ownerName||'?')}</div>`:''}
+   ${it.map(([k,v])=>`<button class="btn menu-btn${red.has(k)?' red':''}" data-m="${k}">${v}</button>`).join('')}
    <div class="mfoot"><button class="btn" id="mC">Close</button></div>`);
   $('#mC').onclick=closeModal;
   $('#md').onclick=function menu(e){const b=e.target.closest('[data-m]');if(!b)return;const m=b.dataset.m;$('#md').onclick=null;
     if(m==='settings')rulesForm();
     if(m==='rename'||m==='new')nameForm(m);
     if(m==='backup')backupForm();
-    if(m==='delete'){if(!b.dataset.armed){b.dataset.armed=1;b.textContent='Tap again to delete '+t.name+' and its games';$('#md').onclick=menu;return}
-      R.list=R.list.filter(x=>x.id!==t.id);R.active=R.list[0].id;saveR();closeModal();renderResults();toast('Tournament deleted')}};
+    if(m==='code')showTourCode(t);
+    if(m==='share'){closeModal();shareTour(t)}
+    if(m==='join')joinTourPrompt();
+    if(m==='refresh'){closeModal();refreshShared(sh.code).then(x=>{renderResults();toast(x?'Up to date':'Couldn’t reach the server')})}
+    const arm=msg=>{if(b.dataset.armed)return true;b.dataset.armed=1;b.textContent=msg;$('#md').onclick=menu;return false};
+    if(m==='delete'){if(!arm('Tap again to delete '+t.name+' and its games'))return;
+      R.list=R.list.filter(x=>x.id!==t.id);R.active=R.list[0].id;saveR();closeModal();renderResults();toast('Tournament deleted')}
+    if(m==='leave'){const n=opsFor(sh.code).length;
+      if(!arm(n?`Tap again — ${n} change${n===1?'':'s'} not uploaded yet will be lost`:'Tap again to remove (you can rejoin with '+sh.code+')'))return;
+      forgetShared(sh.code);closeModal();renderResults();toast('Removed from this phone')}
+    if(m==='wipe'){if(!arm('Tap again to delete '+t.name+' for every player'))return;
+      api('tours/'+sh.code,{method:'DELETE'}).then(()=>{forgetShared(sh.code);closeModal();renderResults();toast('Tournament deleted')}).catch(er=>toast(er.message))}
+  };
 };
 function nameForm(mode){const t=tour();
   modal(`<h3>${mode==='new'?'New tournament':'Rename'}</h3><input type="text" id="nN" style="width:100%" value="${mode==='new'?'':esc(t.name)}" placeholder="e.g. Fudan Autumn Cup">
    ${mode==='new'?'<div class="hint">Uses the same scoring rules as the current tournament — change them after if needed.</div>':''}
+   ${mode==='new'&&STATS_OK?'<label class="hint" style="display:flex;gap:8px;align-items:flex-start;margin-top:10px"><input type="checkbox" id="nS" style="margin-top:2px"><span><b>Share with players</b> — get a code so everyone can see the standings and add games. You’ll be the organizer (needs a player account).</span></label>':''}
    <div class="mfoot"><button class="btn" id="nC">Cancel</button><button class="btn pri" id="nOK">Save</button></div>`);
   $('#nN').focus();$('#nC').onclick=closeModal;
   $('#nOK').onclick=()=>{const v=$('#nN').value.trim();if(!v)return;
-    if(mode==='new'){const id=uid();R.list.push({id,name:v,cfg:JSON.parse(JSON.stringify(t.cfg)),games:[]});R.active=id}else t.name=v;
-    saveR();closeModal();renderResults()};
+    if(mode==='new'){const id=uid();const e={id,name:v,cfg:JSON.parse(JSON.stringify(t.cfg)),games:[]};R.list.push(e);R.active=id;
+      const share=$('#nS')&&$('#nS').checked;saveR();closeModal();renderResults();if(share)shareTour(e);return}
+    if(t.shared){$('#nOK').disabled=true;api('tours/'+t.shared.code,{body:{name:v}}).then(j=>{putShared(j);saveR();closeModal();renderResults();toast('Renamed')}).catch(er=>{$('#nOK').disabled=false;toast(er.message)});return}
+    t.name=v;saveR();closeModal();renderResults()};
 }
 function rulesForm(){const t=tour();const c=t.cfg;const key=c.uma.join(',');
-  modal(`<h3>Scoring rules</h3><div class="hint" style="margin:0 0 10px">Changing these recalculates every game in <b>${esc(t.name)}</b>.</div>
+  modal(`<h3>Scoring rules</h3><div class="hint" style="margin:0 0 10px">Changing these recalculates every game in <b>${esc(t.name)}</b>${t.shared?' for every player':''}.</div>
    <div class="row"><span class="lbl">Start score</span><input type="number" step="1000" id="rS" style="width:110px" value="${c.start}"></div>
    <div class="row"><span class="lbl">Return</span><input type="number" step="1000" id="rR" style="width:110px" value="${c.ret}"><span class="hint" style="margin:0">Oka to 1st: <b id="rOka"></b></span></div>
    <div class="row"><span class="lbl">Uma</span><select id="rU">${Object.entries(UMA_PRESETS).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}<option value="custom">Custom…</option></select></div>
@@ -1059,7 +1084,10 @@ function rulesForm(){const t=tour();const c=t.cfg;const key=c.uma.join(',');
   $('#rS').oninput=$('#rR').oninput=oka;
   $('#rU').onchange=e=>{const v=e.target.value;$('#rUc').style.display=v==='custom'?'':'none';if(v!=='custom')v.split(',').forEach((x,i)=>$(`[data-u="${i}"]`).value=x)};
   $('#rC').onclick=closeModal;
-  $('#rOK').onclick=()=>{c.start=+$('#rS').value||25000;c.ret=+$('#rR').value||c.start;c.uma=[0,1,2,3].map(i=>+$(`[data-u="${i}"]`).value||0);c.round=$('#rRd').value;c.chType=$('#rCh').value;c.chPts=+$('#rChP').value||0;saveR();closeModal();renderResults();toast('Rules saved')};
+  $('#rOK').onclick=()=>{const start=+$('#rS').value||25000;
+    const n={start,ret:+$('#rR').value||start,uma:[0,1,2,3].map(i=>+$(`[data-u="${i}"]`).value||0),round:$('#rRd').value,chType:$('#rCh').value,chPts:+$('#rChP').value||0};
+    if(t.shared){$('#rOK').disabled=true;api('tours/'+t.shared.code,{body:{cfg:n}}).then(j=>{putShared(j);saveR();closeModal();renderResults();toast('Rules saved for everyone')}).catch(er=>{$('#rOK').disabled=false;toast(er.message)});return}
+    Object.assign(c,n);saveR();closeModal();renderResults();toast('Rules saved')};
 }
 function textModal(title,txt,extra){
   modal(`<h3>${title}</h3><textarea class="box" id="tx">${esc(txt)}</textarea>${extra||''}<div class="mfoot"><button class="btn" id="txC">Close</button><button class="btn pri" id="txCopy">Copy</button></div>`);
@@ -1067,7 +1095,7 @@ function textModal(title,txt,extra){
   $('#txCopy').onclick=async()=>{const v=$('#tx').value;try{await navigator.clipboard.writeText(v);toast('Copied')}catch(e){$('#tx').select();toast('Select all and copy manually')}};
 }
 function backupForm(){
-  textModal('Back up / restore',JSON.stringify(R),`<div class="hint">Results live only in this browser. Copy this text somewhere safe (e.g. a WeChat message to yourself). To restore, paste a backup over it and tap <b>Restore</b>.</div><button class="btn red full" id="bR" style="margin-top:10px">Restore from text above</button>`);
+  textModal('Back up / restore',JSON.stringify(R),`<div class="hint">Results live only in this browser (👥 shared tournaments are also kept on the server). Copy this text somewhere safe (e.g. a WeChat message to yourself). To restore, paste a backup over it and tap <b>Restore</b>.</div><button class="btn red full" id="bR" style="margin-top:10px">Restore from text above</button>`);
   $('#bR').onclick=()=>{try{const v=JSON.parse($('#tx').value);if(!v.list||!v.list.length)throw 0;R=v;if(!R.list.find(t=>t.id===R.active))R.active=R.list[0].id;saveR();closeModal();renderResults();toast('Restored')}catch(e){toast('That doesn\'t look like a valid backup')}};
 }
 $('#copyRes').onclick=()=>{const t=tour();const L=leaderboard(t);
@@ -1076,11 +1104,116 @@ $('#copyRes').onclick=()=>{const t=tour();const L=leaderboard(t);
   textModal('Copy results',s);
 };
 
+/* ---------- shared tournaments (join by code) — only on the hosted website ----------
+   The server copy is the official one. Each phone keeps a cached copy (so it works offline) plus a queue of
+   changes not yet uploaded. Anyone with the code can add games; only the organizer can edit/delete them. */
+const sharedTid=c=>'tour:'+c;
+const canEdit=t=>!t.shared||(t.shared.owner&&!t.shared.gone);
+function tourLabel(x){return (x.live?'● Live: ':'')+(x.shared?'👥 ':'')+esc(x.name)}
+let tourOps=store.get('tourOps',[]);
+const saveOps=()=>store.set('tourOps',tourOps);
+const opsFor=c=>tourOps.filter(o=>o.code===c);
+function applyOps(code,games){
+  games=games.slice();
+  for(const o of opsFor(code)){const i=games.findIndex(g=>g.id===o.id);
+    if(o.op==='add'){if(i<0)games.push(o.game)}
+    else if(o.op==='edit'){if(i>=0)games[i]=o.game}
+    else if(i>=0)games.splice(i,1)}
+  return games;
+}
+function putShared(j){ // server copy → this phone (with not-yet-uploaded changes on top)
+  const id=sharedTid(j.code);const i=R.list.findIndex(t=>t.id===id);
+  const e={id,name:j.name,cfg:j.cfg,games:applyOps(j.code,j.games),
+    shared:{code:j.code,owner:!!j.isOwner,ownerName:j.owner?(j.owner.display||j.owner.username):'',synced:Date.now()}};
+  if(i<0)R.list.push(e);else R.list[i]=e;
+  return e;
+}
+function forgetShared(code){
+  R.list=R.list.filter(t=>t.id!==sharedTid(code));tourOps=tourOps.filter(o=>o.code!==code);saveOps();
+  if(!R.list.length){const id=uid();R.list.push({id,name:'Tournament 1',cfg:defCfg(),games:[]})}
+  if(!R.list.find(t=>t.id===R.active))R.active=R.list[0].id;saveR();
+}
+function sharedInfo(t){
+  const rl=t.sharedCode&&R.list.find(x=>x.id===sharedTid(t.sharedCode));
+  if(rl)return `<br>Games finished in this live room save to <b>👥 ${esc(rl.name)}</b>.`;
+  const sh=t.shared;if(!sh)return '';
+  const n=opsFor(sh.code).length;
+  return `<br>👥 Shared · code <b>${sh.code}</b> · ${sh.owner?'you are the organizer':'organizer: '+esc(sh.ownerName||'?')}`+
+    (sh.gone?' · <span class="dn">the organizer deleted this tournament</span>':'')+
+    (n?` · <span class="dn">${n} change${n===1?'':'s'} waiting to upload</span>`:'');
+}
+function queueOp(t,op,data){tourOps.push({k:uid(),code:t.shared.code,op,...data});saveOps();flushOps()}
+let opsBusy=false;
+async function flushOps(){
+  if(opsBusy||!STATS_OK||!tourOps.length)return;opsBusy=true;const bad=new Set();
+  try{while(tourOps.length){const o=tourOps[0];let j=null;
+    try{const base='tours/'+o.code+'/games';
+      j=o.op==='add'?await api(base,{body:o.game}):o.op==='edit'?await api(base+'/'+o.id,{method:'PUT',body:o.game}):await api(base+'/'+o.id,{method:'DELETE'});
+    }catch(e){
+      if(!e.status||e.status>=500||e.status===429)break; // offline or server trouble: keep it and try later
+      toast('Not saved to '+o.code+': '+e.message);bad.add(o.code); // refused (e.g. not the organizer): drop it
+    }
+    tourOps=tourOps.filter(x=>x.k!==o.k);saveOps();
+    if(j&&R.list.find(t=>t.id===sharedTid(j.code)))putShared(j);
+  }}finally{opsBusy=false}
+  for(const c of bad)await refreshShared(c);
+  store.set('tour',R);renderResults();
+}
+async function refreshShared(code){
+  if(!STATS_OK)return null;
+  try{const e=putShared(await api('tours/'+code));store.set('tour',R);return e}
+  catch(er){if(er.status===404){const t=R.list.find(x=>x.id===sharedTid(code));if(t){t.shared.gone=true;store.set('tour',R)}}return null}
+}
+let lastSync=0;
+async function syncShared(force){
+  if(!STATS_OK||(!force&&Date.now()-lastSync<8000))return;lastSync=Date.now();
+  await flushOps();
+  await Promise.all(R.list.filter(t=>t.shared&&!t.shared.gone).map(t=>refreshShared(t.shared.code)));
+  renderResults();
+}
+async function shareTour(t){
+  if(!STATS_OK){toast('Sharing needs the online website — check your connection');return}
+  if(!ME){modal(`<h3>Sign in first</h3><div class="hint">The organizer needs a player account, so only you can edit or delete results. Sign in or make one on the <b>Me</b> tab, then tap ••• → <b>Share with players</b>.</div>
+     <div class="mfoot"><button class="btn" id="sC">Later</button><button class="btn pri" id="sMe">Go to Me</button></div>`);
+    $('#sC').onclick=closeModal;$('#sMe').onclick=()=>{closeModal();showTab('me')};return}
+  toast('Sharing…');
+  try{const j=await api('tours',{body:{name:t.name,cfg:t.cfg,games:t.games}});
+    R.list=R.list.filter(x=>x.id!==t.id);const e=putShared(j);R.active=e.id;saveR();renderResults();showTourCode(e)}
+  catch(er){toast(er.message)}
+}
+const tourURL=c=>location.origin+location.pathname+'?tour='+c;
+function showTourCode(t){const c=t.shared.code,url=tourURL(c);let svg='';
+  try{const q=qrcode(0,'M');q.addData(url);q.make();svg=q.createSvgTag({cellSize:6,margin:2,scalable:true})}catch(e){svg='<div class="hint">QR unavailable — share the code instead.</div>'}
+  modal(`<h3>👥 ${esc(t.name)}</h3><div class="qr">${svg}</div><div class="qr-code">${c}</div>
+   <div class="hint" style="text-align:center;margin:0 0 10px">Players scan this, or open <b>${esc(location.host)}</b> → Results → ••• → <b>Join a tournament</b> and type the code.
+   Everyone can see the standings and add games; only ${t.shared.owner?'you (the organizer)':'the organizer'} can change rules or edit and delete games.</div>
+   <div class="mfoot"><button class="btn" id="qC">Done</button><button class="btn pri" id="qCopy">Copy link</button></div>`);
+  $('#qC').onclick=closeModal;
+  $('#qCopy').onclick=async()=>{try{await navigator.clipboard.writeText(`🀄 ${t.name} — join with code ${c}\n${url}`);toast('Link copied')}catch(e){toast(url)}};
+}
+async function joinTour(code){
+  code=(code||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  if(!/^[A-Z2-9]{6}$/.test(code)){toast('Codes are 6 letters/numbers');return}
+  if(!STATS_OK){toast('Joining needs the online website — check your connection');return}
+  try{const e=putShared(await api('tours/'+code));R.active=e.id;saveR();resView='board';renderResults();showTab('results');toast('Joined '+e.name)}
+  catch(er){toast(er.message)}
+}
+function joinTourPrompt(){
+  modal(`<h3>Join a tournament</h3><input type="text" id="tCode" maxlength="7" autocapitalize="characters" autocomplete="off" placeholder="ABC123" style="width:100%;font-size:26px;letter-spacing:6px;text-align:center;text-transform:uppercase">
+   <div class="hint">Ask the organizer for the code, or scan their QR code with your camera.</div>
+   <div class="mfoot"><button class="btn" id="tC">Cancel</button><button class="btn pri" id="tOK">Join</button></div>`);
+  $('#tCode').focus();$('#tC').onclick=closeModal;
+  const go=()=>{const v=$('#tCode').value;closeModal();joinTour(v)};
+  $('#tOK').onclick=go;$('#tCode').onkeydown=e=>{if(e.key==='Enter')go()};
+}
+window.addEventListener('online',()=>flushOps());
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')syncShared()});
+
 /* ---------- live rooms (QR join) — only on the hosted website ---------- */
 let LIVE=null, LIVE_OK=false;
 const roomTid=c=>'room:'+c;
 const roomTour=()=>LIVE&&R.list.find(t=>t.id===roomTid(LIVE.code));
-const liveDoc=()=>{const t=roomTour();return{game:T,tour:t?{name:t.name,cfg:t.cfg,games:t.games}:null}};
+const liveDoc=()=>{const t=roomTour();return{game:T,tour:t?{name:t.name,cfg:t.cfg,games:t.games,shared:t.sharedCode||undefined}:null}};
 function liveStatus(){
   const bar=$('#liveBar');if(!bar)return;
   if(!LIVE_OK){bar.innerHTML='';return}
@@ -1095,6 +1228,7 @@ function liveStatus(){
 function setRoomTour(code,tour,live){
   const id=roomTid(code);const i=R.list.findIndex(t=>t.id===id);
   const e={id,name:(tour&&tour.name)||('Room '+code),cfg:(tour&&tour.cfg)||defCfg(),games:(tour&&tour.games)||[],live};
+  if(tour&&tour.shared)e.sharedCode=tour.shared;
   if(i<0)R.list.push(e);else R.list[i]=e;store.set('tour',R);
 }
 function applyDoc(doc){
@@ -1105,6 +1239,9 @@ function applyDoc(doc){
     if(!R.list.find(t=>t.id===R.active))R.active=roomTid(LIVE.code);
     store.set('game',T);renderTable();renderResults();
   }finally{LIVE.applying=false}
+  // Room linked to a shared tournament: join it on this phone too, and pick up games other phones just saved.
+  const sc=doc.tour&&doc.tour.shared;
+  if(sc&&STATS_OK&&(!R.list.find(t=>t.id===sharedTid(sc))||!(T.log&&T.log.length))){const code=LIVE.code;refreshShared(sc).then(e=>{if(e&&R.active===roomTid(code)){R.active=e.id;store.set('tour',R)}renderResults()})}
   LIVE.lastJ=JSON.stringify(liveDoc());
 }
 function livePush(){
@@ -1149,7 +1286,7 @@ function endLive(keepCopy=true){
   try{ws&&ws.close()}catch(e){}
   store.set('live',null);
   const t=R.list.find(x=>x.id===roomTid(c));
-  if(t){t.live=false;if(!/· room /.test(t.name))t.name+=' · room '+c;if(!keepCopy&&!t.games.length){R.list=R.list.filter(x=>x!==t)}}
+  if(t){t.live=false;if(!/· room /.test(t.name))t.name+=' · room '+c;if((!keepCopy||t.sharedCode)&&!t.games.length){R.list=R.list.filter(x=>x!==t)}}
   if(!R.list.length){const id=uid();R.list.push({id,name:'Tournament 1',cfg:defCfg(),games:[]})}
   if(!R.list.find(x=>x.id===R.active))R.active=R.list[0].id;
   store.set('tour',R);liveStatus();renderTable();renderResults();
@@ -1157,10 +1294,12 @@ function endLive(keepCopy=true){
 async function startLive(){
   const btn=$('#lvStart');if(btn){btn.disabled=true;btn.textContent='Starting…'}
   const t=tour();
+  // From a shared tournament: the room only links to it (games are saved there), it doesn't copy it.
+  const rt=t.shared?{name:t.name,cfg:t.cfg,games:[],shared:t.shared.code}:{name:t.name,cfg:t.cfg,games:t.games};
   try{
-    const r=await fetch('/api/rooms',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({doc:{game:T,tour:{name:t.name,cfg:t.cfg,games:t.games}}})});
+    const r=await fetch('/api/rooms',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({doc:{game:T,tour:rt}})});
     if(!r.ok)throw 0;const {code}=await r.json();
-    setRoomTour(code,{name:t.name,cfg:t.cfg,games:t.games},true);R.active=roomTid(code);store.set('tour',R);
+    setRoomTour(code,rt,true);if(!t.shared)R.active=roomTid(code);store.set('tour',R);
     beginLive(code,showQR);
   }catch(e){toast('Couldn\'t start a live game — check your connection');liveStatus()}
 }
@@ -1210,8 +1349,10 @@ async function initLive(){
   try{const r=await fetch('/api/health',{cache:'no-store'});health=r.ok?await r.json():null;LIVE_OK=!!(health&&health.ok)}catch(e){LIVE_OK=false}
   if(!LIVE_OK){if($('#v-me').classList.contains('on'))renderMe();return}
   initAccounts(health);
-  const q=new URLSearchParams(location.search).get('room');
-  if(q){try{history.replaceState(null,'',location.pathname+location.hash)}catch(e){}joinRoom(q)}
+  const sp=new URLSearchParams(location.search),q=sp.get('room'),tq=sp.get('tour');
+  if(q||tq){try{history.replaceState(null,'',location.pathname+location.hash)}catch(e){}}
+  if(tq)joinTour(tq);
+  if(q)joinRoom(q)
   else{const s=store.get('live',null);if(s&&s.code)beginLive(s.code)}
   liveStatus();
 }
@@ -1393,7 +1534,7 @@ function formModal(title,body,onSave){
 async function initAccounts(health){
   STATS_OK=!!(health&&health.accounts);if(!STATS_OK){acctBar();return}
   try{ME=(await api('me')).user}catch(e){ME=null}
-  acctBar();flushOutbox(false);
+  acctBar();flushOutbox(false);syncShared(true);
   if($('#v-me').classList.contains('on'))renderMe();
 }
 
@@ -1576,7 +1717,7 @@ const HOWTO=[
 function renderHowto(){$('#howto').innerHTML=HOWTO.map(([ic,t,b],i)=>`<details class="ht"${i===0?' open':''}><summary><span class="ic">${ic}</span>${t}</summary><div class="bd">${b}</div></details>`).join('')}
 
 /* ---------- tabs ---------- */
-function showTab(t){$$('nav button').forEach(b=>b.classList.toggle('on',b.dataset.tab===t));$$('section.view').forEach(s=>s.classList.toggle('on',s.id==='v-'+t));if(t==='me')renderMe();
+function showTab(t){$$('nav button').forEach(b=>b.classList.toggle('on',b.dataset.tab===t));$$('section.view').forEach(s=>s.classList.toggle('on',s.id==='v-'+t));if(t==='me')renderMe();if(t==='results')syncShared();
   try{history.replaceState(null,'',t==='table'?location.pathname+location.search:'#'+t)}catch(e){};window.scrollTo(0,0)}
 function openSheet(){$('#handSheet').classList.add('on');$('#resultBar').classList.add('on');$('#v-hand').scrollTop=0;document.body.style.overflow='hidden'}
 function closeSheet(){$('#handSheet').classList.remove('on');$('#resultBar').classList.remove('on');document.body.style.overflow=''}
