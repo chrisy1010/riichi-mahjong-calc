@@ -2,6 +2,7 @@
 // Static files in /public are served by Cloudflare's asset handler; only /api/* reaches this code.
 // Each room is one Durable Object holding a single JSON "doc": { game, tour }.
 import { DurableObject } from "cloudflare:workers";
+import { ACCOUNT_ROUTES, handleAccounts } from "./api.js";
 
 const CODE_CHARS = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // no 0/O/1/I/L
 const MAX_DOC = 400_000;       // bytes
@@ -19,7 +20,8 @@ export default {
     const parts = url.pathname.split("/").filter(Boolean); // ["api", "rooms", CODE, "ws"]
     if (parts[0] !== "api") return env.ASSETS.fetch(request);
 
-    if (parts[1] === "health") return json({ ok: true });
+    if (parts[1] === "health") return json({ ok: true, accounts: !!env.DB });
+    if (ACCOUNT_ROUTES.has(parts[1])) return handleAccounts(request, env, parts);
 
     if (parts[1] === "rooms" && parts.length === 2 && request.method === "POST") {
       const body = await request.text();
