@@ -296,6 +296,7 @@ input[type=password]{font:inherit;color:var(--ink);background:var(--chip);border
 .acct{font-style:normal;font-weight:600;font-size:13px;color:var(--felt);background:var(--chip);border-radius:6px;padding:0 5px;display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;vertical-align:bottom}
 @media (prefers-color-scheme:dark){.acct{color:#7fd1ad}}
 .acb{margin-top:8px}
+.lv .bx{border:0;background:none;color:var(--muted);font-size:18px;line-height:1;padding:6px 4px 6px 2px;cursor:pointer;flex-shrink:0}
 .lk{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;padding:10px 0;border-top:1px solid var(--line)}
 .lk:first-child{border-top:0}
 .lk-n{flex:1 1 100%;display:flex;align-items:baseline;gap:8px}.lk-n small{color:var(--muted)}
@@ -816,11 +817,18 @@ $('#aSet').onclick=()=>{
    <div class="row"><span class="lbl">Round</span><select id="sR">${[...Array(8)].map((_,i)=>`<option value="${i}">${WINDS[Math.floor(i/4)]} ${i%4+1}</option>`).join('')}</select>
      <span class="lbl" style="min-width:auto">Honba</span><input type="number" id="sH" min="0" style="width:70px" value="${T.honba}"></div>
    <div class="toggle"><div>Kiriage mangan<div class="hint" style="margin:0">Round 4 han 30 fu & 3 han 60 fu up to mangan</div></div><div class="seg" id="sK"><button data-v="0">Off</button><button data-v="1">On</button></div></div>
+   ${LIVE_OK?`<div class="grp">Phones &amp; stats</div>
+   <div class="row" style="gap:6px">${LIVE?'':'<button class="btn" id="sLive" style="flex:1">Share live game</button><button class="btn" id="sJoin" style="flex:1">Join</button>'}${STATS_OK?'<button class="btn" id="sLink" style="flex:1">Link players</button>':''}</div>
+   <div class="toggle"><div>Show these as banners on the table</div><div class="seg" id="sB"><button data-v="1">Show</button><button data-v="0">Hide</button></div></div>`:''}
    <div class="grp">New game</div>
    <div class="row"><span class="lbl">Start score</span><input type="number" step="1000" id="sS" style="width:110px" value="${T.start||25000}"></div>
    <div class="row"><button class="btn red full" id="sNew">Start new game</button></div>
   </div><div class="mfoot"><button class="btn" id="sC">Cancel</button><button class="btn pri" id="sOK">Save</button></div>`);
   $('#sD').value=T.dealer;$('#sR').value=Math.min(T.round,7);
+  if(LIVE_OK){const bu=()=>$$('#sB button').forEach(b=>b.classList.toggle('on',(b.dataset.v==='1')===!(S.hideLive&&S.hideStats)));bu();
+    $('#sB').onclick=e=>{const b=e.target.closest('button');if(!b)return;const h=b.dataset.v==='0';S.hideLive=S.hideStats=h;store.set('settings',S);bu();liveStatus();acctBar()};
+    if($('#sLive')){$('#sLive').onclick=()=>{closeModal();startLive()};$('#sJoin').onclick=()=>{closeModal();joinPrompt()}}
+    if($('#sLink'))$('#sLink').onclick=()=>linkForm()}
   let kiri=S.kiri;const ku=()=>$$('#sK button').forEach(b=>b.classList.toggle('on',(b.dataset.v==='1')===kiri));ku();
   $('#sK').onclick=e=>{const b=e.target.closest('button');if(b){kiri=b.dataset.v==='1';ku()}};
   $('#sC').onclick=closeModal;
@@ -1076,8 +1084,10 @@ const liveDoc=()=>{const t=roomTour();return{game:T,tour:t?{name:t.name,cfg:t.cf
 function liveStatus(){
   const bar=$('#liveBar');if(!bar)return;
   if(!LIVE_OK){bar.innerHTML='';return}
-  if(!LIVE){bar.innerHTML=`<div class="lv off"><span>Play on several phones?</span><button class="btn pri" id="lvStart">Share live game</button><button class="btn" id="lvJoin">Join</button></div>`;
-    $('#lvStart').onclick=startLive;$('#lvJoin').onclick=()=>joinPrompt();return}
+  if(!LIVE){if(S.hideLive){bar.innerHTML='';return}
+    bar.innerHTML=`<div class="lv off"><span>Play on several phones?</span><button class="btn pri" id="lvStart">Share live game</button><button class="btn" id="lvJoin">Join</button><button class="bx" id="lvX" aria-label="Hide">✕</button></div>`;
+    $('#lvStart').onclick=startLive;$('#lvJoin').onclick=()=>joinPrompt();
+    $('#lvX').onclick=()=>hideBanner('hideLive');return}
   const st=LIVE.connected?`<span class="dot on"></span>Live · <b>${LIVE.code}</b> · ${LIVE.online||1} online`:`<span class="dot"></span>Reconnecting… <b>${LIVE.code}</b>`;
   bar.innerHTML=`<div class="lv"><span style="flex:1">${st}</span><button class="btn pri" id="lvQR">QR</button><button class="btn" id="lvLeave">Leave</button></div>`;
   $('#lvQR').onclick=showQR;$('#lvLeave').onclick=leavePrompt;
@@ -1220,8 +1230,11 @@ const DEFAULT_NAME=/^(player ?\d|seat ?\d|east|south|west|north)$/i;
 function acctBar(){const bar=$('#acctBar');if(!bar)return;
   if(!STATS_OK){bar.innerHTML='';return}
   const n=linkedCount();
-  bar.innerHTML=`<div class="lv off acb"><span>${n?`<b style="color:var(--ink)">${n} of 4</b> players linked — their stats save when you finish`:'Save this game to players’ stats?'}</span><button class="btn" id="acLink">${n?'Edit':'Link players'}</button></div>`;
-  $('#acLink').onclick=linkForm}
+  if(!n&&S.hideStats){bar.innerHTML='';return}
+  bar.innerHTML=`<div class="lv off acb"><span>${n?`<b style="color:var(--ink)">${n} of 4</b> players linked — their stats save when you finish`:'Save this game to players’ stats?'}</span><button class="btn" id="acLink">${n?'Edit':'Link players'}</button>${n?'':'<button class="bx" id="acX" aria-label="Hide">✕</button>'}</div>`;
+  $('#acLink').onclick=linkForm;if(!n)$('#acX').onclick=()=>hideBanner('hideStats')}
+function hideBanner(k){S[k]=true;store.set('settings',S);liveStatus();acctBar();
+  toast('Hidden — find it again under the ⚙ players & settings button')}
 function statsNote(){ensureStats();const L=T.acct.filter(Boolean).map(a=>'<b>@'+esc(a.u)+'</b>');
   if(!L.length)return STATS_OK?'<div class="hint">No players linked, so this game won’t go into anyone’s stats. Tap <b>Link players</b> on the Table tab first.</div>':'';
   return `<div class="hint">📊 Saves to stats for ${L.join(', ')}${STATS_OK?'':' — uploads next time this phone is online'}.</div>`}
