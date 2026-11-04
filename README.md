@@ -6,6 +6,7 @@ A free website for Riichi (Japanese) mahjong:
 - **Record win** – full hand scorer (yaku, dora, fu) with double/triple ron
 - **Live games** – tap *Share live game* to get a **QR code**; everyone who scans it joins the same table and can record riichi, wins and draws from their own phone. Updates appear instantly on every phone.
 - **Results** – tournaments with uma/oka (default: 25,000 start, 30,000 return, +30/+10/−10/−30, 五捨六入), leaderboard, game history, copy-to-WeChat text, backups. A live room has its own shared scoreboard.
+- **Shared tournaments** – on the Results tab, ••• → *Share with players* gives a 6-character code and QR code (needs a player account; you become the organizer). Players join with ••• → *Join a tournament* or by scanning. Everyone sees the same standings and can add games from their own phone — including games finished in a live room started from the shared tournament. Only the organizer can change rules, rename, edit or delete games, or delete the tournament. Games added offline upload automatically when the phone is back online.
 - **Me** – player accounts (username + password) and personal stats: win rate, deal-in rate, riichi and call rates, average win, tenpai at draws, chombo, placements, most common yaku. Each player sees only their own stats and can download them as CSV.
 - **Yaku** reference and **How to** play guide
 
@@ -61,5 +62,5 @@ npm run dev        # http://localhost:8787
 
 ## Notes
 - Live rooms are deleted automatically after 90 days with no changes.
-- Personal results (tournaments, backups) are stored in each phone's browser; live rooms are stored on Cloudflare.
+- Personal results (tournaments, backups) are stored in each phone's browser; live rooms and shared tournaments are stored on Cloudflare. Shared tournaments don't expire.
 - In mainland China the `workers.dev` address usually needs a VPN.
