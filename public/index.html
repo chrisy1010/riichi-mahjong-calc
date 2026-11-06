@@ -153,6 +153,42 @@ select,input[type=text],input[type=number]{font:inherit;color:var(--ink);backgro
 .cb.p.on{background:var(--gold);border-color:var(--gold);color:#fff}
 .cb:disabled{opacity:.3;cursor:not-allowed}
 .seat.rii .box{box-shadow:0 0 0 2px var(--accent) inset}
+/* one-screen table: players sit around the felt, each card faces its player */
+.board-wrap{display:flex;justify-content:center;margin:12px 0 14px}
+.board{position:relative;width:374px;height:452px;flex:none}
+.board .cell{position:absolute}
+.board .c-bot{left:82px;top:340px;width:210px;height:112px}
+.board .c-top{left:82px;top:0;width:210px;height:112px}
+.board .c-left{left:0;top:121px;width:112px;height:210px}
+.board .c-right{left:262px;top:121px;width:112px;height:210px}
+.board .seat{position:absolute;left:50%;top:50%;width:210px;height:112px;margin:-56px 0 0 -105px}
+.board .c-left .seat{transform:rotate(90deg)}.board .c-right .seat{transform:rotate(-90deg)}.board .c-top .seat{transform:rotate(180deg)}
+.board .seat .box{grid-template-columns:1fr 50px;height:100%;min-height:0;border-radius:22px}
+.board .seat .tag{top:-10px;font-size:10px;padding:2px 10px}
+.board .seat .info{padding:9px 6px 8px 12px}
+.board .seat .nm{font-size:13px;display:flex;align-items:center;gap:6px}
+.board .seat .nm span{overflow:hidden;text-overflow:ellipsis}
+.board .seat .stick{width:30px;height:6px;margin:0;flex-shrink:0}
+.board .seat .sc{font-size:22px;margin-top:2px;line-height:1.15}
+.board .seat .d{font-size:11px;min-height:14px;display:flex;gap:4px;align-items:center;white-space:nowrap;overflow:hidden}
+.board .seat .d .mk{font-size:9px;padding:0 4px}
+.board .seat .calls{gap:4px;padding:0}
+.board .cb{font-size:10px;padding:3px 0}
+.board .seat .wind{gap:4px}
+.board .seat .wind .k{width:36px;height:36px;font-size:20px}
+.board .seat .wind .wl{font-size:9px}
+.board .mid{position:absolute;left:121px;top:121px;width:132px;height:210px;display:grid;place-items:center}
+.board .felt{width:132px;height:178px;border-radius:26px;background:var(--felt);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;box-shadow:inset 0 0 0 5px var(--felt2)}
+.board .rk{width:64px;height:64px;border-radius:50%;background:#fff;color:var(--felt);display:grid;place-items:center;font-size:34px;font-family:"Noto Serif SC","Songti SC",serif}
+.board .rl{font-size:15px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;margin-top:4px}
+.board .tinfo{font-size:11px;font-style:italic;opacity:.85}
+.board .pills{display:flex;flex-wrap:wrap;justify-content:center;gap:4px;margin-top:6px;padding:0 6px}
+.board .pill{background:rgba(255,255,255,.14);border-radius:999px;padding:2px 8px;font-size:10px;letter-spacing:.4px;text-transform:uppercase;font-weight:500}
+.board .pill b{font-size:12px}
+#v-table .last{margin:10px 0 0;background:var(--histbg);border:1.5px solid var(--seatline);border-radius:16px;padding:7px 12px;font-family:"DM Mono",ui-monospace,monospace;font-size:11.5px;color:var(--windink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#v-table .last:empty{display:none}
+@media (max-width:360px){.big-btn{letter-spacing:1.2px;font-size:15px;white-space:nowrap}}
+#v-table .last b{font-family:"Outfit",sans-serif;margin-right:6px}
 .tact{display:flex;gap:10px;align-items:stretch}
 .big-btn{flex:1;height:60px;border:0;border-radius:30px;background:var(--felt);color:#fff;font:inherit;font-size:17px;font-weight:600;letter-spacing:2.5px;text-transform:uppercase;cursor:pointer}
 .sq{width:66px;border:0;border-radius:24px;background:var(--windbg);color:var(--windink);font:inherit;font-weight:600;letter-spacing:.8px;text-transform:uppercase;cursor:pointer;display:grid;place-items:center}
@@ -351,27 +387,24 @@ input[type=password]{font:inherit;color:var(--ink);background:var(--chip);border
 
 <!-- TRACKER -->
 <section class="view on" id="v-table">
-  <div class="trk-head">
-    <div>
-      <div class="trk-title">Track</div>
-      <div class="trk-sub" id="tHand">Hand 1</div>
-      <div class="sticks">
-        <span class="mini"><small>Honba</small> <b id="tHonba">0</b></span>
-        <span class="mini"><small>Pot</small> <b id="tPot">0</b></span>
-      </div>
-    </div>
-    <div class="rw"><div class="rw-c" id="tRwK">東</div><div class="rw-l" id="tRound">East 1</div></div>
-  </div>
   <div id="liveBar"></div>
   <div id="acctBar"></div>
   <div id="gameOver"></div>
-  <div class="cross" id="players"></div>
+  <div class="board-wrap"><div class="board" id="board">
+    <div id="players"></div>
+    <div class="mid"><div class="felt">
+      <div class="rk" id="tRwK">東</div><div class="rl" id="tRound">East 1</div>
+      <div class="tinfo"><span id="tHand">Hand 1</span> · <span id="tEnd">of South 4</span></div>
+      <div class="pills"><span class="pill">Honba <b id="tHonba">0</b></span><span class="pill">Pot <b id="tPot">0</b></span></div>
+    </div></div>
+  </div></div>
   <div class="tact">
     <button class="big-btn" id="aWin">Record win</button>
     <button class="sq" id="aDraw">Draw</button>
     <button class="sq" id="aSet" aria-label="Players and settings"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="3" x2="5" y2="21"/><line x1="12" y1="3" x2="12" y2="21"/><line x1="19" y1="3" x2="19" y2="21"/><circle cx="5" cy="15" r="2.4" fill="var(--windbg)"/><circle cx="12" cy="8" r="2.4" fill="var(--windbg)"/><circle cx="19" cy="14" r="2.4" fill="var(--windbg)"/></svg></button>
   </div>
   <div class="row2"><button class="fin-btn" id="aMistake" style="flex:0 0 34%">Chombo…</button><button class="fin-btn" id="aFinish">Finish &amp; save</button></div>
+  <div class="last" id="tLast"></div>
   <div class="trk-hint">Tap <b>Riichi</b> when a player declares (moves 1,000 to the pot). Tap <b>Pon</b> for each call they make — tap past 4 to clear. Both reset after every hand.</div>
   <div class="hist-h"><span>History</span><span><button class="lnk" id="aUndo">Undo</button><button class="lnk" id="aReset">Reset game</button></span></div>
   <ul class="log" id="log"></ul>
@@ -699,29 +732,33 @@ const seatWind=i=>WINDS[(i-T.dealer+4)%4];
 function snap(){hist.push(JSON.stringify(T));if(hist.length>60)hist.shift();if(LIVE)LIVE.pendHist=true}
 function save(){store.set('game',T);store.set('hist',hist);livePush()}
 const KANJI={East:'東',South:'南',West:'西',North:'北'};
-const POS=['p-bot','p-right','p-top','p-left']; // seats go counter-clockwise like a real table
+const POS=['c-bot','c-right','c-top','c-left']; // seats go counter-clockwise like a real table
 function renderTable(){
   if(!T.pon)T.pon=[0,0,0,0];ensureMist();ensureStats();
   const rw=WINDS[Math.floor(T.round/4)%4];
   $('#tRwK').textContent=KANJI[rw];$('#tRound').textContent=roundName();
-  $('#tHand').textContent='Hand '+(T.log.length+1);
+  $('#tHand').textContent='Hand '+(T.log.length+1);$('#tEnd').textContent='to '+WINDS[gameLen()-1]+' 4';
   $('#tHonba').textContent=T.honba;$('#tPot').textContent=fmt(T.pot*1000);
   $('#players').innerHTML=T.players.map((p,i)=>{const w=seatWind(i),dl=i===T.dealer,r=T.riichi[i],pn=T.pon[i];
-    return `<div class="seat ${POS[i]} ${dl?'dealer':''} ${r?'rii':''} ${T.dead[i]?'deadh':''}">${dl?'<div class="tag">Dealer</div>':''}
+    const marks=`${T.dead[i]?'<span class="mk dh">Dead</span>':''}${T.chombo[i]?`<span class="mk ch">Chombo${T.chombo[i]>1?' ×'+T.chombo[i]:''}</span>`:''}${T.warn[i]?`<span class="mk wn">Warn${T.warn[i]>1?' ×'+T.warn[i]:''}</span>`:''}`;
+    return `<div class="cell ${POS[i]}"><div class="seat ${dl?'dealer':''} ${r?'rii':''} ${T.dead[i]?'deadh':''}">${dl?'<div class="tag">Dealer</div>':''}
     <div class="box"><div class="info">
-      <div class="nm">${esc(p.name)}</div><div class="st">${T.acct[i]?`<span class="acct">@${esc(T.acct[i].u)}</span>`:'Seat '+(i+1)}</div>
-      ${r?'<div class="stick" title="Riichi"></div>':''}
+      <div class="nm" title="${T.acct[i]?'@'+esc(T.acct[i].u):'Seat '+(i+1)}"><span>${esc(p.name)}</span>${r?'<i class="stick" title="Riichi"></i>':''}</div>
       <div class="sc">${fmt(p.score)}</div>
-      <div class="d ${T.delta[i]>0?'pos':T.delta[i]<0?'neg':''}">${T.delta[i]?(T.delta[i]>0?'+':'')+fmt(T.delta[i]):''}</div>
-      ${(T.chombo[i]||T.dead[i]||T.warn[i])?`<div class="marks">${T.dead[i]?'<span class="mk dh">Dead hand</span>':''}${T.chombo[i]?`<span class="mk ch">Chombo${T.chombo[i]>1?' ×'+T.chombo[i]:''}</span>`:''}${T.warn[i]?`<span class="mk wn">Warn${T.warn[i]>1?' ×'+T.warn[i]:''}</span>`:''}</div>`:''}
+      <div class="d ${T.delta[i]>0?'pos':T.delta[i]<0?'neg':''}">${T.delta[i]?(T.delta[i]>0?'+':'−')+fmt(Math.abs(T.delta[i])):''}${marks}</div>
       <div class="calls"><button class="cb r ${r?'on':''}" data-r="${i}" ${pn?'disabled':''}>Riichi</button><button class="cb p ${pn?'on':''}" data-p="${i}" ${r?'disabled':''}>Pon${pn>1?' ×'+pn:''}</button></div>
-    </div><div class="wind"><div class="k">${KANJI[w]}</div><div class="wl">${w}</div></div></div></div>`}).join('');
+    </div><div class="wind"><div class="k">${KANJI[w]}</div><div class="wl">${w}</div></div></div></div></div>`}).join('');
+  {const l=T.log[T.log.length-1];$('#tLast').innerHTML=l?`<b>${esc(l.r)}</b>${esc(l.t)}`:''}
+  fitBoard();
   $('#log').innerHTML=T.log.slice().reverse().map(l=>`<li><span class="rd">${l.r}</span>${esc(l.t)}</li>`).join('')||'<li class="empty">No rounds logged yet</li>';
   const bust=T.players.some(p=>p.score<0),done=T.round>=gameLen()*4;
   $('#gameOver').innerHTML=(bust||done)?`<div class="over"><span style="flex:1">${bust?'Someone is below zero':WINDS[gameLen()-1]+' 4 is finished'} — game over?</span><button class="btn pri" onclick="finishGame()">Finish</button></div>`:'';
   renderUndo();liveStatus();acctBar();
   save();
 }
+/* scale the table to the screen (down on small phones, up a little on tablets) */
+function fitBoard(){const b=$('#board');if(!b)return;const w=b.parentNode.clientWidth;if(!w)return;b.style.zoom=Math.max(.7,Math.min(1.4,w/374))}
+addEventListener('resize',fitBoard);
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 function endHand(dealerStays,drawn){
   T.riichi=[false,false,false,false];T.pon=[0,0,0,0];T.dead=[false,false,false,false];
@@ -1736,7 +1773,7 @@ const HOWTO=[
 function renderHowto(){$('#howto').innerHTML=HOWTO.map(([ic,t,b],i)=>`<details class="ht"${i===0?' open':''}><summary><span class="ic">${ic}</span>${t}</summary><div class="bd">${b}</div></details>`).join('')}
 
 /* ---------- tabs ---------- */
-function showTab(t){$$('nav button').forEach(b=>b.classList.toggle('on',b.dataset.tab===t));$$('section.view').forEach(s=>s.classList.toggle('on',s.id==='v-'+t));if(t==='me')renderMe();if(t==='results')syncShared();
+function showTab(t){$$('nav button').forEach(b=>b.classList.toggle('on',b.dataset.tab===t));$$('section.view').forEach(s=>s.classList.toggle('on',s.id==='v-'+t));if(t==='me')renderMe();if(t==='results')syncShared();if(t==='table')fitBoard();
   try{history.replaceState(null,'',t==='table'?location.pathname+location.search:'#'+t)}catch(e){};window.scrollTo(0,0)}
 function openSheet(){$('#handSheet').classList.add('on');$('#resultBar').classList.add('on');$('#v-hand').scrollTop=0;document.body.style.overflow='hidden'}
 function closeSheet(){$('#handSheet').classList.remove('on');$('#resultBar').classList.remove('on');document.body.style.overflow=''}
