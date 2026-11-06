@@ -430,10 +430,15 @@ input[type=password]{font:inherit;color:var(--ink);background:var(--chip);border
   <div class="card">
     <h2>Yaku</h2>
     <div id="yaku"></div>
-    <div class="stepper" style="margin-top:8px;border-top:1px solid var(--line)">
-      <div class="t">Yakuhai<small>Each triplet of dragons, seat wind or round wind</small></div>
-      <div class="step" data-k="yakuhai"><button>−</button><b>0</b><button>+</button></div>
+    <div class="grp" style="margin-top:10px">Yakuhai <small style="font-weight:400;color:var(--muted)">— tap each triplet/quad · 1 han each</small></div>
+    <div class="chips" id="yakuhai">
+      <button class="chip" data-yh="haku">白 Blank <small>haku</small></button>
+      <button class="chip" data-yh="hatsu">發 Fa cai <small>hatsu</small></button>
+      <button class="chip" data-yh="chun">中 Red zhong <small>chun</small></button>
+      <button class="chip" data-yh="seat">Seat wind</button>
+      <button class="chip" data-yh="round">Round wind</button>
     </div>
+    <div class="hint" id="yhHint">If the seat wind is also the round wind, tap both (double wind = 2 han).</div>
     <div id="yakuWarn"></div>
   </div>
 
@@ -520,9 +525,14 @@ const YMAP={};YAKU.forEach(g=>g[1].forEach(y=>YMAP[y[0]]=y));
 const EXCL=[['riichi','dblriichi'],['iipeikou','ryanpeikou'],['chanta','junchan'],['honitsu','chinitsu'],['pinfu','chiitoi'],['iipeikou','chiitoi'],['ryanpeikou','chiitoi'],['chanta','honroutou'],['junchan','honroutou']];
 const YAKUMAN=[['kokushi','Kokushi musou'],['suuankou','Suuankou'],['daisangen','Daisangen'],['shousuushii','Shousuushii'],['daisuushii','Daisuushii'],['tsuuiisou','Tsuuiisou'],['chinroutou','Chinroutou'],['ryuuiisou','Ryuuiisou'],['chuuren','Chuuren poutou'],['suukantsu','Suukantsu'],['tenhou','Tenhou'],['chiihou','Chiihou']];
 
+const YH=[['haku','Haku (blank)'],['hatsu','Hatsu (fa cai)'],['chun','Chun (red zhong)'],['seat','Seat wind'],['round','Round wind']];
+/* during a table recording, name the actual winds */
+function yhWinds(){try{if(!P)return null}catch(e){return null}const w=recOrder()[P.idx];return w==null?null:{seat:seatWind(w),round:WINDS[Math.floor(T.round/4)%4]}}
+function yhName(k,n){const w=yhWinds();return w&&(k==='seat'||k==='round')?`${n} (${w[k]})`:n}
+
 /* ---------- hand state ---------- */
-const blankHand=()=>({tsumo:false,dealer:false,open:false,y:{},ykm:{},yakuhai:0,dora:0,aka:0,ura:0,honba:0,sticks:0,fuMode:0,wait:0,pair:0,melds:[0,1,2,3].map(()=>({k:'seq',o:false,t:false}))});
-let H=Object.assign(blankHand(),store.get('hand',{}));
+const blankHand=()=>({tsumo:false,dealer:false,open:false,y:{},ykm:{},yh:{},dora:0,aka:0,ura:0,honba:0,sticks:0,fuMode:0,wait:0,pair:0,melds:[0,1,2,3].map(()=>({k:'seq',o:false,t:false}))});
+let H=Object.assign(blankHand(),store.get('hand',{}));delete H.yakuhai;if(!H.yh)H.yh={};
 
 function buildHandUI(){
   $('#yaku').innerHTML=YAKU.map(([g,list])=>`<div class="grp">${g}</div><div class="chips">`+
@@ -555,7 +565,7 @@ function calcHan(){
   const L=[];let han=0;
   for(const id in H.y){if(!H.y[id])continue;const y=YMAP[id];const v=H.open?y[3]:y[2];if(v==null)continue;han+=v;L.push([y[1],v])}
   if(!H.open&&H.tsumo){han+=1;L.push(['Menzen tsumo',1])}
-  if(H.yakuhai){han+=H.yakuhai;L.push(['Yakuhai',H.yakuhai])}
+  YH.forEach(([k,n])=>{if(H.yh[k]){han+=1;L.push(['Yakuhai: '+yhName(k,n),1])}});
   const yakuHan=han;
   if(H.dora){han+=H.dora;L.push(['Dora',H.dora])}
   if(H.aka){han+=H.aka;L.push(['Aka dora',H.aka])}
@@ -572,6 +582,10 @@ function renderHand(){
   const at=$('#autoTsumo');if(at)at.classList.toggle('on',!H.open&&H.tsumo);
   $$('#ykm [data-k]').forEach(b=>b.classList.toggle('on',!!H.ykm[b.dataset.k]));
   $$('#v-hand .step').forEach(s=>s.querySelector('b').textContent=H[s.dataset.k]);
+  $$('#yakuhai [data-yh]').forEach(b=>b.classList.toggle('on',!!H.yh[b.dataset.yh]));
+  {const w=yhWinds();$('#yakuhai [data-yh="seat"]').innerHTML=w?`Seat wind <small>${KANJI[w.seat]} ${w.seat}</small>`:'Seat wind';
+   $('#yakuhai [data-yh="round"]').innerHTML=w?`Round wind <small>${KANJI[w.round]} ${w.round}</small>`:'Round wind';
+   $('#yhHint').textContent=w?(w.seat===w.round?`Double wind: ${w.seat} is both seat and round wind — tap both for 2 han.`:`${w.seat} seat, ${w.round} round. Other winds (guest winds) don't count.`):'If the seat wind is also the round wind, tap both (double wind = 2 han).'}
   $('#fuMode').value=String(H.fuMode);$('#fuWait').value=H.wait;$('#fuPair').value=H.pair;
   $$('#melds .meld').forEach(row=>{const m=H.melds[+row.dataset.i];
     row.querySelectorAll('.seg').forEach(sg=>{const f=sg.dataset.f;const val=f==='k'?m.k:(m[f]?'1':'0');sg.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.v===val))});
@@ -610,8 +624,9 @@ function wireHand(){
     if(H.y[id])EXCL.forEach(([a,c])=>{if(a===id)H.y[c]=false;if(c===id)H.y[a]=false});
     if(id==='ippatsu'&&H.y.ippatsu&&!H.y.riichi&&!H.y.dblriichi)H.y.riichi=true;
     renderHand()});
+  $('#yakuhai').addEventListener('click',e=>{const b=e.target.closest('[data-yh]');if(!b)return;H.yh[b.dataset.yh]=!H.yh[b.dataset.yh];renderHand()});
   $('#ykm').addEventListener('click',e=>{const b=e.target.closest('[data-k]');if(!b)return;H.ykm[b.dataset.k]=!H.ykm[b.dataset.k];renderHand()});
-  $('#v-hand').addEventListener('click',e=>{const b=e.target.closest('.step button');if(!b)return;const k=b.parentNode.dataset.k;const d=b.textContent==='+'?1:-1;const max={yakuhai:4,dora:20,aka:4,ura:20,honba:20,sticks:20}[k];H[k]=Math.max(0,Math.min(max,H[k]+d));renderHand()});
+  $('#v-hand').addEventListener('click',e=>{const b=e.target.closest('.step button');if(!b)return;const k=b.parentNode.dataset.k;const d=b.textContent==='+'?1:-1;const max={dora:20,aka:4,ura:20,honba:20,sticks:20}[k];H[k]=Math.max(0,Math.min(max,H[k]+d));renderHand()});
   $('#fuMode').onchange=e=>{H.fuMode=+e.target.value;renderHand()};
   $('#fuWait').onchange=e=>{H.wait=+e.target.value;renderHand()};
   $('#fuPair').onchange=e=>{H.pair=+e.target.value;renderHand()};
@@ -668,7 +683,7 @@ const gid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 /* prev: the game before. Account links carry over for seats whose name didn't change (same table, next game). */
 const newGame=(names,start,prev)=>{names=names||['East','South','West','North'];
   const acct=names.map((n,i)=>prev&&prev.acct&&prev.acct[i]&&prev.players[i]&&prev.players[i].name===n?prev.acct[i]:null);
-  return{players:names.map(n=>({name:n,score:start})),start,dealer:0,round:0,honba:0,pot:0,riichi:[false,false,false,false],pon:[0,0,0,0],delta:[0,0,0,0],log:[],startedAt:Date.now(),chombo:[0,0,0,0],cp:[0,0,0,0],warn:[0,0,0,0],dead:[false,false,false,false],
+  return{players:names.map(n=>({name:n,score:start})),start,len:S.len||2,dealer:0,round:0,honba:0,pot:0,riichi:[false,false,false,false],pon:[0,0,0,0],delta:[0,0,0,0],log:[],startedAt:Date.now(),chombo:[0,0,0,0],cp:[0,0,0,0],warn:[0,0,0,0],dead:[false,false,false,false],
     id:gid(),tid:(prev&&prev.tid&&acct.some(Boolean))?prev.tid:gid(),acct,hands:[]}};
 function ensureStats(){if(!T.id)T.id=gid();if(!T.tid)T.tid=gid();if(!T.acct)T.acct=[null,null,null,null];if(!T.hands)T.hands=[]}
 /* one structured record per hand, for player stats */
@@ -677,6 +692,9 @@ function handRec(kind){return{r:roundName()+(T.honba?`-${T.honba}`:''),dealer:T.
 let T=store.get('game',null)||newGame(['Player 1','Player 2','Player 3','Player 4'],25000);
 let hist=store.get('hist',[]);
 const roundName=()=>WINDS[Math.floor(T.round/4)%4]+' '+(T.round%4+1);
+/* how many wind rounds the game lasts: 1 = East only, 2 = East+South (hanchan), … */
+const gameLen=()=>Math.max(1,Math.min(4,T.len||S.len||2));
+const LEN_NAMES=['East round (tonpuusen)','South round (hanchan)','West round','North round'];
 const seatWind=i=>WINDS[(i-T.dealer+4)%4];
 function snap(){hist.push(JSON.stringify(T));if(hist.length>60)hist.shift();if(LIVE)LIVE.pendHist=true}
 function save(){store.set('game',T);store.set('hist',hist);livePush()}
@@ -699,8 +717,8 @@ function renderTable(){
       <div class="calls"><button class="cb r ${r?'on':''}" data-r="${i}" ${pn?'disabled':''}>Riichi</button><button class="cb p ${pn?'on':''}" data-p="${i}" ${r?'disabled':''}>Pon${pn>1?' ×'+pn:''}</button></div>
     </div><div class="wind"><div class="k">${KANJI[w]}</div><div class="wl">${w}</div></div></div></div>`}).join('');
   $('#log').innerHTML=T.log.slice().reverse().map(l=>`<li><span class="rd">${l.r}</span>${esc(l.t)}</li>`).join('')||'<li class="empty">No rounds logged yet</li>';
-  const bust=T.players.some(p=>p.score<0),done=T.round>=8;
-  $('#gameOver').innerHTML=(bust||done)?`<div class="over"><span style="flex:1">${bust?'Someone is below zero':'South 4 is finished'} — game over?</span><button class="btn pri" onclick="finishGame()">Finish</button></div>`:'';
+  const bust=T.players.some(p=>p.score<0),done=T.round>=gameLen()*4;
+  $('#gameOver').innerHTML=(bust||done)?`<div class="over"><span style="flex:1">${bust?'Someone is below zero':WINDS[gameLen()-1]+' 4 is finished'} — game over?</span><button class="btn pri" onclick="finishGame()">Finish</button></div>`:'';
   renderUndo();liveStatus();acctBar();
   save();
 }
@@ -814,8 +832,9 @@ $('#aSet').onclick=()=>{
    <div class="grp">Names & scores (seat order, East first)</div>
    ${T.players.map((p,i)=>`<div class="pr"><input type="text" data-n="${i}" value="${esc(p.name)}"><input type="number" step="100" data-s="${i}" value="${p.score}"></div>`).join('')}
    <div class="row"><span class="lbl">Dealer</span><select id="sD">${T.players.map((p,i)=>`<option value="${i}">${esc(p.name)}</option>`).join('')}</select></div>
-   <div class="row"><span class="lbl">Round</span><select id="sR">${[...Array(8)].map((_,i)=>`<option value="${i}">${WINDS[Math.floor(i/4)]} ${i%4+1}</option>`).join('')}</select>
+   <div class="row"><span class="lbl">Round</span><select id="sR">${[...Array(16)].map((_,i)=>`<option value="${i}">${WINDS[Math.floor(i/4)]} ${i%4+1}</option>`).join('')}</select>
      <span class="lbl" style="min-width:auto">Honba</span><input type="number" id="sH" min="0" style="width:70px" value="${T.honba}"></div>
+   <div class="row"><span class="lbl">Game ends after</span><select id="sL">${LEN_NAMES.map((n,i)=>`<option value="${i+1}">${n}</option>`).join('')}</select></div>
    <div class="toggle"><div>Kiriage mangan<div class="hint" style="margin:0">Round 4 han 30 fu & 3 han 60 fu up to mangan</div></div><div class="seg" id="sK"><button data-v="0">Off</button><button data-v="1">On</button></div></div>
    ${LIVE_OK?`<div class="grp">Phones &amp; stats</div>
    <div class="row" style="gap:6px">${LIVE?'':'<button class="btn" id="sLive" style="flex:1">Share live game</button><button class="btn" id="sJoin" style="flex:1">Join</button>'}${STATS_OK?'<button class="btn" id="sLink" style="flex:1">Link players</button>':''}</div>
@@ -824,7 +843,7 @@ $('#aSet').onclick=()=>{
    <div class="row"><span class="lbl">Start score</span><input type="number" step="1000" id="sS" style="width:110px" value="${T.start||25000}"></div>
    <div class="row"><button class="btn red full" id="sNew">Start new game</button></div>
   </div><div class="mfoot"><button class="btn" id="sC">Cancel</button><button class="btn pri" id="sOK">Save</button></div>`);
-  $('#sD').value=T.dealer;$('#sR').value=Math.min(T.round,7);
+  $('#sD').value=T.dealer;$('#sR').value=Math.min(T.round,15);$('#sL').value=gameLen();
   if(LIVE_OK){const bu=()=>$$('#sB button').forEach(b=>b.classList.toggle('on',(b.dataset.v==='1')===!(S.hideLive&&S.hideStats)));bu();
     $('#sB').onclick=e=>{const b=e.target.closest('button');if(!b)return;const h=b.dataset.v==='0';S.hideLive=S.hideStats=h;store.set('settings',S);bu();liveStatus();acctBar()};
     if($('#sLive')){$('#sLive').onclick=()=>{closeModal();startLive()};$('#sJoin').onclick=()=>{closeModal();joinPrompt()}}
@@ -834,10 +853,10 @@ $('#aSet').onclick=()=>{
   $('#sC').onclick=closeModal;
   let armed=false;
   $('#sNew').onclick=()=>{if(!armed){armed=true;$('#sNew').textContent='Tap again to wipe scores';return}
-    snap();const names=$$('[data-n]').map(x=>x.value.trim()||'Player');T=newGame(names,+$('#sS').value||25000,T);S.kiri=kiri;store.set('settings',S);closeModal();renderTable();renderHand()};
+    snap();S.len=+$('#sL').value;const names=$$('[data-n]').map(x=>x.value.trim()||'Player');T=newGame(names,+$('#sS').value||25000,T);S.kiri=kiri;store.set('settings',S);closeModal();renderTable();renderHand()};
   $('#sOK').onclick=()=>{snap();$$('[data-n]').forEach(x=>T.players[+x.dataset.n].name=x.value.trim()||'Player');
     $$('[data-s]').forEach(x=>T.players[+x.dataset.s].score=+x.value||0);
-    T.dealer=+$('#sD').value;const nr=+$('#sR').value;if(nr!==Math.min(T.round,7))T.round=nr;T.honba=Math.max(0,+$('#sH').value||0);T.delta=[0,0,0,0];
+    T.dealer=+$('#sD').value;const nr=+$('#sR').value;if(nr!==Math.min(T.round,15))T.round=nr;T.len=S.len=+$('#sL').value;T.honba=Math.max(0,+$('#sH').value||0);T.delta=[0,0,0,0];
     S.kiri=kiri;store.set('settings',S);closeModal();renderTable();renderHand()};
 };
 
