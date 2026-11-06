@@ -187,6 +187,15 @@ select,input[type=text],input[type=number]{font:inherit;color:var(--ink);backgro
 .board .pill b{font-size:12px}
 #v-table .last{margin:10px 0 0;background:var(--histbg);border:1.5px solid var(--seatline);border-radius:16px;padding:7px 12px;font-family:"DM Mono",ui-monospace,monospace;font-size:11.5px;color:var(--windink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #v-table .last:empty{display:none}
+/* upright view (phone held, not lying flat): nothing rotates; side seats become tall cards */
+.board.upright .seat{transform:none!important}
+.board.upright .c-left .seat,.board.upright .c-right .seat{width:112px;height:210px;margin:-105px 0 0 -56px}
+.board.upright .c-left .box,.board.upright .c-right .box{grid-template-columns:1fr;grid-template-rows:50px 1fr}
+.board.upright .c-left .wind,.board.upright .c-right .wind{order:-1;flex-direction:row;gap:7px}
+.board.upright .c-left .info,.board.upright .c-right .info{padding:8px 9px 9px}
+.board.upright .c-left .calls,.board.upright .c-right .calls{flex-direction:column;gap:5px}
+.board.upright .c-left .cb,.board.upright .c-right .cb{flex:none;padding:5px 0}
+.board.upright .c-left .sc,.board.upright .c-right .sc{font-size:20px}
 @media (max-width:360px){.big-btn{letter-spacing:1.2px;font-size:15px;white-space:nowrap}}
 #v-table .last b{font-family:"Outfit",sans-serif;margin-right:6px}
 .tact{display:flex;gap:10px;align-items:stretch}
@@ -749,7 +758,7 @@ function renderTable(){
       <div class="calls"><button class="cb r ${r?'on':''}" data-r="${i}" ${pn?'disabled':''}>Riichi</button><button class="cb p ${pn?'on':''}" data-p="${i}" ${r?'disabled':''}>Pon${pn>1?' ×'+pn:''}</button></div>
     </div><div class="wind"><div class="k">${KANJI[w]}</div><div class="wl">${w}</div></div></div></div></div>`}).join('');
   {const l=T.log[T.log.length-1];$('#tLast').innerHTML=l?`<b>${esc(l.r)}</b>${esc(l.t)}`:''}
-  fitBoard();
+  $('#board').classList.toggle('upright',!!S.upright);fitBoard();
   $('#log').innerHTML=T.log.slice().reverse().map(l=>`<li><span class="rd">${l.r}</span>${esc(l.t)}</li>`).join('')||'<li class="empty">No rounds logged yet</li>';
   const bust=T.players.some(p=>p.score<0),done=T.round>=gameLen()*4;
   $('#gameOver').innerHTML=(bust||done)?`<div class="over"><span style="flex:1">${bust?'Someone is below zero':WINDS[gameLen()-1]+' 4 is finished'} — game over?</span><button class="btn pri" onclick="finishGame()">Finish</button></div>`:'';
@@ -872,6 +881,7 @@ $('#aSet').onclick=()=>{
    <div class="row"><span class="lbl">Round</span><select id="sR">${[...Array(16)].map((_,i)=>`<option value="${i}">${WINDS[Math.floor(i/4)]} ${i%4+1}</option>`).join('')}</select>
      <span class="lbl" style="min-width:auto">Honba</span><input type="number" id="sH" min="0" style="width:70px" value="${T.honba}"></div>
    <div class="row"><span class="lbl">Game ends after</span><select id="sL">${LEN_NAMES.map((n,i)=>`<option value="${i+1}">${n}</option>`).join('')}</select></div>
+   <div class="toggle"><div>Table view<div class="hint" style="margin:0">Flat: phone lies in the middle, cards face each player. Upright: you're holding the phone, everything reads the right way up.</div></div><div class="seg" id="sU"><button data-v="0">Flat</button><button data-v="1">Upright</button></div></div>
    <div class="toggle"><div>Kiriage mangan<div class="hint" style="margin:0">Round 4 han 30 fu & 3 han 60 fu up to mangan</div></div><div class="seg" id="sK"><button data-v="0">Off</button><button data-v="1">On</button></div></div>
    ${LIVE_OK?`<div class="grp">Phones &amp; stats</div>
    <div class="row" style="gap:6px">${LIVE?'':'<button class="btn" id="sLive" style="flex:1">Share live game</button><button class="btn" id="sJoin" style="flex:1">Join</button>'}${STATS_OK?'<button class="btn" id="sLink" style="flex:1">Link players</button>':''}</div>
@@ -885,16 +895,18 @@ $('#aSet').onclick=()=>{
     $('#sB').onclick=e=>{const b=e.target.closest('button');if(!b)return;const h=b.dataset.v==='0';S.hideLive=S.hideStats=h;store.set('settings',S);bu();liveStatus();acctBar()};
     if($('#sLive')){$('#sLive').onclick=()=>{closeModal();startLive()};$('#sJoin').onclick=()=>{closeModal();joinPrompt()}}
     if($('#sLink'))$('#sLink').onclick=()=>linkForm()}
+  let upr=!!S.upright;const uu=()=>$$('#sU button').forEach(b=>b.classList.toggle('on',(b.dataset.v==='1')===upr));uu();
+  $('#sU').onclick=e=>{const b=e.target.closest('button');if(b){upr=b.dataset.v==='1';uu()}};
   let kiri=S.kiri;const ku=()=>$$('#sK button').forEach(b=>b.classList.toggle('on',(b.dataset.v==='1')===kiri));ku();
   $('#sK').onclick=e=>{const b=e.target.closest('button');if(b){kiri=b.dataset.v==='1';ku()}};
   $('#sC').onclick=closeModal;
   let armed=false;
   $('#sNew').onclick=()=>{if(!armed){armed=true;$('#sNew').textContent='Tap again to wipe scores';return}
-    snap();S.len=+$('#sL').value;const names=$$('[data-n]').map(x=>x.value.trim()||'Player');T=newGame(names,+$('#sS').value||25000,T);S.kiri=kiri;store.set('settings',S);closeModal();renderTable();renderHand()};
+    snap();S.len=+$('#sL').value;const names=$$('[data-n]').map(x=>x.value.trim()||'Player');T=newGame(names,+$('#sS').value||25000,T);S.kiri=kiri;S.upright=upr;store.set('settings',S);closeModal();renderTable();renderHand()};
   $('#sOK').onclick=()=>{snap();$$('[data-n]').forEach(x=>T.players[+x.dataset.n].name=x.value.trim()||'Player');
     $$('[data-s]').forEach(x=>T.players[+x.dataset.s].score=+x.value||0);
     T.dealer=+$('#sD').value;const nr=+$('#sR').value;if(nr!==Math.min(T.round,15))T.round=nr;T.len=S.len=+$('#sL').value;T.honba=Math.max(0,+$('#sH').value||0);T.delta=[0,0,0,0];
-    S.kiri=kiri;store.set('settings',S);closeModal();renderTable();renderHand()};
+    S.kiri=kiri;S.upright=upr;store.set('settings',S);closeModal();renderTable();renderHand()};
 };
 
 /* ---------- mistakes: warning / dead hand / chombo ---------- */
